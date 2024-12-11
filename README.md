@@ -203,3 +203,20 @@ Where you can find `YOUR_ARCHITECTURE` by running `rustc -vV | grep host`. For M
 ## License
 
 This project is fully open source, including an Apache-2.0 or MIT license at your choosing under your own copyright.
+
+## Testing command
+
+### Used to insert order on tick 1 at index 0
+
+cast send --rpc-url 'http://localhost:8547' --private-key 0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659 \
+[contract-address] "writeOrder(uint256,uint256,address,uint256)" 1 0 0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E 10
+
+### Used to retrieve order on tick 1 at index 0
+
+cast call --rpc-url 'http://localhost:8547' --private-key 0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659 \
+[contract-address] "readOrder(uint256,uint256)(address,uint256)" 1 0
+
+### Used to retrieve order on tick 1 at index 1 (empty order)
+
+cast call --rpc-url 'http://localhost:8547' --private-key 0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659 \
+[contract-address] "readOrder(uint256,uint256)(address,uint256)" 1 1

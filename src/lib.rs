@@ -3,10 +3,10 @@
 extern crate alloc;
 
 use stylus_sdk::{
-    alloy_primitives::{U128, U256},
-    console, hostio,
+    alloy_primitives::{keccak256, Address, U128, U256},
+    console,
+    hostio::{storage_cache_bytes32, storage_flush_cache, storage_load_bytes32},
     prelude::*,
-    stylus_proc::entrypoint,
 };
 
 sol_storage! {
@@ -46,431 +46,293 @@ impl OrderBook {
 
         let mut order = orders.grow();
         order.quantity.set(U128::from(quantity));
-        order.is_buy.set(is_buy);
     }
 
-    pub fn orders(&self) -> Vec<(U256, bool)> {
-        let mut orders: Vec<(U256, bool)> = Vec::new();
-        let tick_orders_len: usize = self.tick_orders.get(U128::from(10)).len();
-        for index in 0..tick_orders_len {
-            let current_tick = self.current_tick.get();
-            let tick_orders = self.tick_orders.get(U128::from(current_tick));
-            let buy_order = tick_orders.get(index).unwrap();
-            orders.push((U256::from(buy_order.quantity.get()), buy_order.is_buy.get()));
+    pub fn read_order(&self, tick: U256, order_index: U256) -> Result<(Address, U256), Vec<u8>> {
+        let encoded_order_key = self.encode_order_key(tick, order_index).unwrap();
+        let hashed_encoded_order_key = keccak256(encoded_order_key);
+
+        let mut buffer_order_data: [u8; 32] = [0u8; 32];  
+
+        unsafe {
+            storage_load_bytes32(hashed_encoded_order_key.as_ptr(), buffer_order_data.as_mut_ptr());
         }
 
-        orders
+        let encoded_order_data = buffer_order_data.to_vec();
+        let decoded_order_data = self.decode_order_data(encoded_order_data);
+
+        Ok(decoded_order_data.unwrap())
     }
 
-    pub fn current_tick(&self) -> U256 {
-        console!("tick: {}", self.current_tick.get());
-        U256::from(self.current_tick.get())
-    }
-
-    pub fn set_current_tick(&mut self, current_tick: U256) {
-        console!("tick: {}", self.current_tick.get());
-        self.current_tick.set(U128::from(current_tick));
-    }
-
-    pub fn best_buy_tick(&self) -> U256 {
-        let mut counter = 0;
-        let mut best_tick = U256::from(0);
-
-        loop {
-            counter += 1;
-
-            let tick_orders_len: usize = self
-                .tick_orders
-                .get(self.current_tick.get() - (U128::from(counter) * self.tick_spacing.get()))
-                .len();
-
-            if tick_orders_len != 0 {
-                best_tick = U256::from(
-                    self.current_tick.get() - (U128::from(counter) * self.tick_spacing.get()),
-                );
-            }
-
-            if counter >= 5 || best_tick != U256::from(0) {
-                break;
-            }
-        }
-
-        best_tick
-    }
-
-    pub fn best_sell_tick(&self) -> U256 {
-        let mut counter = 0;
-        let mut best_tick = U256::from(0);
-
-        loop {
-            counter += 1;
-
-            let tick_orders_len: usize = self
-                .tick_orders
-                .get(self.current_tick.get() + (U128::from(counter) * self.tick_spacing.get()))
-                .len();
-
-            if tick_orders_len != 0 {
-                best_tick = U256::from(
-                    self.current_tick.get() - (U128::from(counter) * self.tick_spacing.get()),
-                );
-            }
-
-            if counter >= 5 || best_tick != U256::from(0) {
-                break;
-            }
-        }
-
-        best_tick
-    }
-
-    pub fn market_tick(&self, is_buy: bool) -> U256 {
-        if is_buy {
-            self.best_buy_tick()
-        } else {
-            self.best_sell_tick()
-        }
-    }
-
-    pub fn top_n_best_buy_ticks(&self) -> Vec<U256> {
-        let mut counter = 0;
-        let mut best_ticks: Vec<U256> = Vec::new();
-
-        loop {
-            counter += 1;
-
-            let tick_orders_len: usize = self
-                .tick_orders
-                .get(self.current_tick.get() - (U128::from(counter) * self.tick_spacing.get()))
-                .len();
-
-            if tick_orders_len != 0 {
-                best_ticks.push(U256::from(
-                    self.current_tick.get() - (U128::from(counter) * self.tick_spacing.get()),
-                ));
-            }
-
-            if counter >= 5 || best_ticks.len() >= 5 {
-                break;
-            }
-        }
-
-        best_ticks
-    }
-
-    pub fn top_n_best_sell_ticks(&self) -> Vec<U256> {
-        let mut counter = 0;
-        let mut best_ticks: Vec<U256> = Vec::new();
-
-        loop {
-            counter += 1;
-
-            let tick_orders_len: usize = self
-                .tick_orders
-                .get(self.current_tick.get() + (U128::from(counter) * self.tick_spacing.get()))
-                .len();
-
-            if tick_orders_len != 0 {
-                best_ticks.push(
-                    U256::from(self.current_tick.get())
-                        - (U256::from(counter) * U256::from(self.tick_spacing.get())),
-                );
-            }
-
-            if counter >= 5 || best_ticks.len() >= 5 {
-                break;
-            }
-        }
-
-        best_ticks
-    }
-
-    pub fn buy_volume(&self) -> U256 {
-        self.buy_volume.get()
-    }
-
-    pub fn sell_volume(&self) -> U256 {
-        self.sell_volume.get()
-    }
-
-    pub fn match_market_order(
+    pub fn write_order(
         &mut self,
-        incoming_order_quantity: U256,
-        incoming_order_tick: U256,
-        incoming_order_is_buy: bool,
+        tick: U256,
+        order_index: U256,
+        user: Address,
+        quantity: U256,
     ) {
-        let mut remaining_incoming_order_quantity = incoming_order_quantity;
-        if incoming_order_is_buy {
-            let possible_ticks = self.top_n_best_sell_ticks();
+        let encoded_order_key = self.encode_order_key(tick, order_index).unwrap();
+        let encoded_order_data = self.encode_order_data(user, quantity).unwrap();
 
-            if possible_ticks.is_empty() {
-                for tick in possible_ticks {
-                    let mut sell_quantity = U128::from(0);
-                    let initial_remaining_incoming_order_quantity =
-                        U128::from(remaining_incoming_order_quantity);
-                    let mut orders: Vec<(U256, U256, U256)> = Vec::new();
+        let hashed_encoded_order_key = keccak256(encoded_order_key);
 
-                    {
-                        let tick_orders = self.tick_orders.get(U128::from(tick));
-                        if !tick_orders.is_empty() {
-                            for index in 0..tick_orders.len() {
-                                let sell_order = tick_orders.get(index).unwrap();
-                                sell_quantity += sell_order.quantity.get();
-                                orders.push((
-                                    U256::from(index),
-                                    tick,
-                                    U256::from(sell_order.quantity.get()),
-                                ));
-                            }
-                        }
-                    } 
-
-                    if !orders.is_empty() {
-                        remaining_incoming_order_quantity = self.execute_match(
-                            orders,
-                            remaining_incoming_order_quantity,
-                            incoming_order_is_buy,
-                        );
-                    }
-
-                    let mut tick_data = self.ticks.setter(U128::from(tick));
-                    if initial_remaining_incoming_order_quantity > sell_quantity {
-                        tick_data.is_buy.set(true);
-                        tick_data.volume.set(U128::from(0));
-                    } else if initial_remaining_incoming_order_quantity < sell_quantity {
-                        tick_data
-                            .volume
-                            .set(sell_quantity - initial_remaining_incoming_order_quantity);
-                    } else {
-                        tick_data.volume.set(U128::from(0));
-                    }
-
-                    if remaining_incoming_order_quantity == U256::ZERO {
-                        break;
-                    }
-                }
-
-                if remaining_incoming_order_quantity != U256::ZERO {
-                    self.add_order_to_orderbook(
-                        U256::from(remaining_incoming_order_quantity),
-                        incoming_order_tick,
-                        incoming_order_is_buy,
-                    );
-                }
-            } else {
-                self.add_order_to_orderbook(
-                    remaining_incoming_order_quantity,
-                    incoming_order_tick,
-                    incoming_order_is_buy,
-                );
-            }
-        } else {
-            let possible_ticks = self.top_n_best_buy_ticks();
-
-            if possible_ticks.is_empty() {
-                for tick in possible_ticks {
-                    let mut buy_quantity = U128::from(0);
-                    let initial_remaining_incoming_order_quantity =
-                        U128::from(remaining_incoming_order_quantity);
-                    let mut orders: Vec<(U256, U256, U256)> = Vec::new();
-
-                    {
-                        let tick_orders = self.tick_orders.get(U128::from(tick));
-                        if !tick_orders.is_empty() {
-                            for index in 0..tick_orders.len() {
-                                let buy_order = tick_orders.get(index).unwrap();
-                                buy_quantity += buy_order.quantity.get();
-                                orders.push((
-                                    U256::from(index),
-                                    tick,
-                                    U256::from(buy_order.quantity.get()),
-                                ));
-                            }
-                        }
-                    } 
-
-                    if !orders.is_empty() {
-                        remaining_incoming_order_quantity = self.execute_match(
-                            orders,
-                            remaining_incoming_order_quantity,
-                            incoming_order_is_buy,
-                        );
-                    }
-
-                    let mut tick_data = self.ticks.setter(U128::from(tick));
-                    if initial_remaining_incoming_order_quantity > buy_quantity {
-                        tick_data.is_buy.set(false);
-                        tick_data.volume.set(U128::from(0));
-                    } else if initial_remaining_incoming_order_quantity < buy_quantity {
-                        tick_data
-                            .volume
-                            .set(buy_quantity - initial_remaining_incoming_order_quantity);
-                    } else {
-                        tick_data.volume.set(U128::from(0));
-                    }
-
-                    if remaining_incoming_order_quantity == U256::ZERO {
-                        break;
-                    }
-                }
-
-                if remaining_incoming_order_quantity != U256::ZERO {
-                    self.add_order_to_orderbook(
-                        U256::from(remaining_incoming_order_quantity),
-                        incoming_order_tick,
-                        incoming_order_is_buy,
-                    );
-                }
-            } else {
-                self.add_order_to_orderbook(
-                    remaining_incoming_order_quantity,
-                    incoming_order_tick,
-                    incoming_order_is_buy,
-                );
-            }
+        unsafe {
+            storage_cache_bytes32(hashed_encoded_order_key.as_ptr(), encoded_order_data.as_ptr());
+            storage_flush_cache(false);
         }
     }
 
-    pub fn limit_market_order(
-        &mut self,
-        incoming_order_quantity: U256,
-        incoming_order_tick: U256,
-        incoming_order_is_buy: bool,
-    ) {
-        let mut remaining_incoming_order_quantity = incoming_order_quantity;
-
-        if incoming_order_is_buy {
-            let possible_ticks = self.top_n_best_sell_ticks();
-
-            if !possible_ticks.is_empty() {
-                let orders_to_process: Vec<(U256, Vec<(U256, U256, U256)>)> = possible_ticks
-                    .into_iter()
-                    .filter(|&tick| incoming_order_tick >= tick)
-                    .filter(|&tick| !self.tick_orders.get(U128::from(tick)).is_empty())
-                    .map(|tick| {
-                        let orders: Vec<(U256, U256, U256)> = (0..self
-                            .tick_orders
-                            .get(U128::from(tick))
-                            .len())
-                            .filter_map(|index| {
-                                let tick_orders = self.tick_orders.get(U128::from(tick));
-                                let order = tick_orders.get(index)?;
-                                Some((U256::from(index), tick, U256::from(order.quantity.get())))
-                            })
-                            .collect();
-                        (tick, orders)
-                    })
-                    .collect();
-
-                for (_, orders) in orders_to_process {
-                    remaining_incoming_order_quantity = self.execute_match(
-                        orders,
-                        remaining_incoming_order_quantity,
-                        incoming_order_is_buy,
-                    );
-
-                    if remaining_incoming_order_quantity == U256::ZERO {
-                        break;
-                    }
-                }
-            }
-        } else {
-            let possible_ticks = self.top_n_best_sell_ticks();
-
-            if !possible_ticks.is_empty() {
-                let orders_to_process: Vec<(U256, Vec<(U256, U256, U256)>)> = possible_ticks
-                    .into_iter()
-                    .filter(|&tick| incoming_order_tick >= tick)
-                    .filter(|&tick| !self.tick_orders.get(U128::from(tick)).is_empty())
-                    .map(|tick| {
-                        let orders: Vec<(U256, U256, U256)> = (0..self
-                            .tick_orders
-                            .get(U128::from(tick))
-                            .len())
-                            .filter_map(|index| {
-                                let tick_orders = self.tick_orders.get(U128::from(tick));
-                                let order = tick_orders.get(index)?;
-                                Some((U256::from(index), tick, U256::from(order.quantity.get())))
-                            })
-                            .collect();
-                        (tick, orders)
-                    })
-                    .collect();
-
-                for (_, orders) in orders_to_process {
-                    remaining_incoming_order_quantity = self.execute_match(
-                        orders,
-                        remaining_incoming_order_quantity,
-                        incoming_order_is_buy,
-                    );
-
-                    if remaining_incoming_order_quantity == U256::ZERO {
-                        break;
-                    }
-                }
-            }
-        }
-
-        if remaining_incoming_order_quantity != U256::ZERO {
-            self.add_order_to_orderbook(
-                remaining_incoming_order_quantity,
-                incoming_order_tick,
-                incoming_order_is_buy,
-            );
-        }
+    pub fn encode_order_key(&self, tick: U256, order_index: U256) -> Result<Vec<u8>, Vec<u8>> {
+        let mut encoded = Vec::new();
+        encoded.extend_from_slice(&tick.to_be_bytes::<32>());
+        encoded.extend_from_slice(b"-");
+        encoded.extend_from_slice(&order_index.to_be_bytes::<32>());
+        Ok(encoded)
     }
 
-    fn execute_match(
-        &mut self,
-        valid_orders: Vec<(U256, U256, U256)>,
-        incoming_order_quantity: U256,
-        incoming_order_is_buy: bool,
-    ) -> U256 {
-        let mut remaining_incoming_order_quantity = incoming_order_quantity;
-
-        for (order_index, order_tick, order_quantity) in valid_orders {
-            let mut remaining_order_quantity = order_quantity;
-
-            // Partially Matched
-            if remaining_order_quantity < remaining_incoming_order_quantity {
-                remaining_incoming_order_quantity -= order_quantity;
-                remaining_order_quantity = U256::ZERO;
-            }
-            // Perfectly Matched
-            else if remaining_order_quantity == remaining_incoming_order_quantity {
-                remaining_incoming_order_quantity = U256::ZERO;
-                remaining_order_quantity = U256::ZERO;
-                break;
-            }
-            // Fully Matched
-            else {
-                remaining_incoming_order_quantity = U256::ZERO;
-                remaining_order_quantity -= remaining_incoming_order_quantity;
-                break;
-            }
-
-            self.update_order(
-                order_index,
-                remaining_order_quantity,
-                order_tick,
-                incoming_order_is_buy,
-            );
-        }
-
-        remaining_incoming_order_quantity
+    pub fn encode_order_data(&self, user: Address, quantity: U256) -> Result<[u8; 32], Vec<u8>> {
+        let mut encoded = [0u8; 32];
+        encoded[..20].copy_from_slice(&<[u8; 20]>::from(user));
+        encoded[20..32].copy_from_slice(&quantity.to_be_bytes::<32>()[20..32]);
+        Ok(encoded)
     }
 
-    fn update_order(&mut self, index: U256, quantity: U256, tick: U256, is_buy: bool) {
-        let mut tick_data = if is_buy {
-            self.buy_volume.set(tick * quantity);
-            self.tick_orders.setter(U128::from(tick))
-        } else {
-            self.sell_volume.set(tick * quantity);
-            self.tick_orders.setter(U128::from(tick))
-        };
+    pub fn decode_order_data(&self, encoded: Vec<u8>) -> Result<(Address, U256), Vec<u8>> {
+        let mut user_bytes = [0u8; 20];
+        user_bytes.copy_from_slice(&encoded[..20]);
+        let user = Address::from(user_bytes);
 
-        let mut order = tick_data.setter(index).unwrap();
-
-        order.quantity.set(U128::from(quantity));
+        let mut quantity_bytes = [0u8; 32];
+        quantity_bytes[20..32].copy_from_slice(&encoded[20..32]);
+        let quantity = U256::from_be_bytes::<32>(quantity_bytes);
+    
+        Ok((user, quantity))
     }
+
+    // pub fn match_market_order(
+    //     &mut self,
+    //     incoming_order_quantity: U256,
+    //     incoming_order_tick: U256,
+    //     incoming_order_is_buy: bool,
+    // ) {
+    //     let mut remaining_incoming_order_quantity = incoming_order_quantity;
+    //     if incoming_order_is_buy {
+    //         let possible_ticks = self.top_n_best_sell_ticks();
+
+    //         if possible_ticks.is_empty() {
+    //             for tick in possible_ticks {
+    //                 let mut sell_quantity = U128::from(0);
+    //                 let initial_remaining_incoming_order_quantity =
+    //                     U128::from(remaining_incoming_order_quantity);
+    //                 let mut orders: Vec<(U256, U256, U256)> = Vec::new();
+
+    //                 {
+    //                     let tick_orders = self.tick_orders.get(U128::from(tick));
+    //                     if !tick_orders.is_empty() {
+    //                         for index in 0..tick_orders.len() {
+    //                             let sell_order = tick_orders.get(index).unwrap();
+    //                             sell_quantity += sell_order.quantity.get();
+    //                             orders.push((
+    //                                 U256::from(index),
+    //                                 tick,
+    //                                 U256::from(sell_order.quantity.get()),
+    //                             ));
+    //                         }
+    //                     }
+    //                 }
+
+    //                 if !orders.is_empty() {
+    //                     remaining_incoming_order_quantity = self.execute_match(
+    //                         orders,
+    //                         remaining_incoming_order_quantity,
+    //                         incoming_order_is_buy,
+    //                     );
+    //                 }
+
+    //                 let mut tick_data = self.ticks.setter(U128::from(tick));
+    //                 if initial_remaining_incoming_order_quantity > sell_quantity {
+    //                     tick_data.is_buy.set(true);
+    //                     tick_data.volume.set(U128::from(0));
+    //                 } else if initial_remaining_incoming_order_quantity < sell_quantity {
+    //                     tick_data
+    //                         .volume
+    //                         .set(sell_quantity - initial_remaining_incoming_order_quantity);
+    //                 } else {
+    //                     tick_data.volume.set(U128::from(0));
+    //                 }
+
+    //                 if remaining_incoming_order_quantity == U256::ZERO {
+    //                     break;
+    //                 }
+    //             }
+
+    //             if remaining_incoming_order_quantity != U256::ZERO {
+    //                 self.add_order_to_orderbook(
+    //                     U256::from(remaining_incoming_order_quantity),
+    //                     incoming_order_tick,
+    //                     incoming_order_is_buy,
+    //                 );
+    //             }
+    //         } else {
+    //             self.add_order_to_orderbook(
+    //                 remaining_incoming_order_quantity,
+    //                 incoming_order_tick,
+    //                 incoming_order_is_buy,
+    //             );
+    //         }
+    //     } else {
+    //         let possible_ticks = self.top_n_best_buy_ticks();
+
+    //         if possible_ticks.is_empty() {
+    //             for tick in possible_ticks {
+    //                 let mut buy_quantity = U128::from(0);
+    //                 let initial_remaining_incoming_order_quantity =
+    //                     U128::from(remaining_incoming_order_quantity);
+    //                 let mut orders: Vec<(U256, U256, U256)> = Vec::new();
+
+    //                 {
+    //                     let tick_orders = self.tick_orders.get(U128::from(tick));
+    //                     if !tick_orders.is_empty() {
+    //                         for index in 0..tick_orders.len() {
+    //                             let buy_order = tick_orders.get(index).unwrap();
+    //                             buy_quantity += buy_order.quantity.get();
+    //                             orders.push((
+    //                                 U256::from(index),
+    //                                 tick,
+    //                                 U256::from(buy_order.quantity.get()),
+    //                             ));
+    //                         }
+    //                     }
+    //                 }
+
+    //                 if !orders.is_empty() {
+    //                     remaining_incoming_order_quantity = self.execute_match(
+    //                         orders,
+    //                         remaining_incoming_order_quantity,
+    //                         incoming_order_is_buy,
+    //                     );
+    //                 }
+
+    //                 let mut tick_data = self.ticks.setter(U128::from(tick));
+    //                 if initial_remaining_incoming_order_quantity > buy_quantity {
+    //                     tick_data.is_buy.set(false);
+    //                     tick_data.volume.set(U128::from(0));
+    //                 } else if initial_remaining_incoming_order_quantity < buy_quantity {
+    //                     tick_data
+    //                         .volume
+    //                         .set(buy_quantity - initial_remaining_incoming_order_quantity);
+    //                 } else {
+    //                     tick_data.volume.set(U128::from(0));
+    //                 }
+
+    //                 if remaining_incoming_order_quantity == U256::ZERO {
+    //                     break;
+    //                 }
+    //             }
+
+    //             if remaining_incoming_order_quantity != U256::ZERO {
+    //                 self.add_order_to_orderbook(
+    //                     U256::from(remaining_incoming_order_quantity),
+    //                     incoming_order_tick,
+    //                     incoming_order_is_buy,
+    //                 );
+    //             }
+    //         } else {
+    //             self.add_order_to_orderbook(
+    //                 remaining_incoming_order_quantity,
+    //                 incoming_order_tick,
+    //                 incoming_order_is_buy,
+    //             );
+    //         }
+    //     }
+    // }
+
+    // pub fn limit_market_order(
+    //     &mut self,
+    //     incoming_order_quantity: U256,
+    //     incoming_order_tick: U256,
+    //     incoming_order_is_buy: bool,
+    // ) {
+    //     let mut remaining_incoming_order_quantity = incoming_order_quantity;
+
+    //     if incoming_order_is_buy {
+    //         let possible_ticks = self.top_n_best_sell_ticks();
+
+    //         if !possible_ticks.is_empty() {
+    //             let orders_to_process: Vec<(U256, Vec<(U256, U256, U256)>)> = possible_ticks
+    //                 .into_iter()
+    //                 .filter(|&tick| incoming_order_tick >= tick)
+    //                 .filter(|&tick| !self.tick_orders.get(U128::from(tick)).is_empty())
+    //                 .map(|tick| {
+    //                     let orders: Vec<(U256, U256, U256)> = (0..self
+    //                         .tick_orders
+    //                         .get(U128::from(tick))
+    //                         .len())
+    //                         .filter_map(|index| {
+    //                             let tick_orders = self.tick_orders.get(U128::from(tick));
+    //                             let order = tick_orders.get(index)?;
+    //                             Some((U256::from(index), tick, U256::from(order.quantity.get())))
+    //                         })
+    //                         .collect();
+    //                     (tick, orders)
+    //                 })
+    //                 .collect();
+
+    //             for (_, orders) in orders_to_process {
+    //                 remaining_incoming_order_quantity = self.execute_match(
+    //                     orders,
+    //                     remaining_incoming_order_quantity,
+    //                     incoming_order_is_buy,
+    //                 );
+
+    //                 if remaining_incoming_order_quantity == U256::ZERO {
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //     } else {
+    //         let possible_ticks = self.top_n_best_sell_ticks();
+
+    //         if !possible_ticks.is_empty() {
+    //             let orders_to_process: Vec<(U256, Vec<(U256, U256, U256)>)> = possible_ticks
+    //                 .into_iter()
+    //                 .filter(|&tick| incoming_order_tick >= tick)
+    //                 .filter(|&tick| !self.tick_orders.get(U128::from(tick)).is_empty())
+    //                 .map(|tick| {
+    //                     let orders: Vec<(U256, U256, U256)> = (0..self
+    //                         .tick_orders
+    //                         .get(U128::from(tick))
+    //                         .len())
+    //                         .filter_map(|index| {
+    //                             let tick_orders = self.tick_orders.get(U128::from(tick));
+    //                             let order = tick_orders.get(index)?;
+    //                             Some((U256::from(index), tick, U256::from(order.quantity.get())))
+    //                         })
+    //                         .collect();
+    //                     (tick, orders)
+    //                 })
+    //                 .collect();
+
+    //             for (_, orders) in orders_to_process {
+    //                 remaining_incoming_order_quantity = self.execute_match(
+    //                     orders,
+    //                     remaining_incoming_order_quantity,
+    //                     incoming_order_is_buy,
+    //                 );
+
+    //                 if remaining_incoming_order_quantity == U256::ZERO {
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     if remaining_incoming_order_quantity != U256::ZERO {
+    //         self.add_order_to_orderbook(
+    //             remaining_incoming_order_quantity,
+    //             incoming_order_tick,
+    //             incoming_order_is_buy,
+    //         );
+    //     }
+    // }
 }
