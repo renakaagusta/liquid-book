@@ -8,5 +8,5 @@ Please provide a summary of the changes and any backward incompatibilities.
 - [ ] I have read the [DCO][DCO] and ensured that these changes comply.
 - [ ] I assign this work under its [open source licensing][terms].
 
-[DCO]: https://github.com/OffchainLabs/liquid-book/blob/main/licenses/DCO.txt
-[terms]: https://github.com/OffchainLabs/liquid-book/blob/main/licenses/COPYRIGHT.md
+[DCO]: https://github.com/OffchainLabs/liquid-book-engine/blob/main/licenses/DCO.txt
+[terms]: https://github.com/OffchainLabs/liquid-book-engine/blob/main/licenses/COPYRIGHT.md

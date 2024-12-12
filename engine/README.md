@@ -46,7 +46,7 @@ cargo stylus --help
 Then, clone the template:
 
 ```
-git clone https://github.com/OffchainLabs/liquid-book && cd liquid-book
+git clone https://github.com/OffchainLabs/liquid-book-engine && cd liquid-book-engine
 ```
 
 ### Testnet Information
@@ -96,7 +96,7 @@ If successful, you should see:
 
 ```bash
 Finished release [optimized] target(s) in 1.88s
-Reading WASM file at liquid-book/target/wasm32-unknown-unknown/release/liquid-book.wasm
+Reading WASM file at liquid-book-engine/target/wasm32-unknown-unknown/release/liquid-book-engine.wasm
 Compressed WASM size: 8.9 KB
 Program succeeded Stylus onchain activation checks with Stylus version: 1
 ```
@@ -190,7 +190,7 @@ By default, the cargo stylus tool will build your project for WASM using sensibl
 
 ## Peeking Under the Hood
 
-The [stylus-sdk](https://github.com/OffchainLabs/stylus-sdk-rs) contains many features for writing Stylus programs in Rust. It also provides helpful macros to make the experience for Solidity developers easier. These macros expand your code into pure Rust code that can then be compiled to WASM. If you want to see what the `liquid-book` boilerplate expands into, you can use `cargo expand` to see the pure Rust code that will be deployed onchain.
+The [stylus-sdk](https://github.com/OffchainLabs/stylus-sdk-rs) contains many features for writing Stylus programs in Rust. It also provides helpful macros to make the experience for Solidity developers easier. These macros expand your code into pure Rust code that can then be compiled to WASM. If you want to see what the `liquid-book-engine` boilerplate expands into, you can use `cargo expand` to see the pure Rust code that will be deployed onchain.
 
 First, run `cargo install cargo-expand` if you don't have the subcommand already, then:
 
@@ -205,6 +205,12 @@ Where you can find `YOUR_ARCHITECTURE` by running `rustc -vV | grep host`. For M
 This project is fully open source, including an Apache-2.0 or MIT license at your choosing under your own copyright.
 
 ## Testing command
+
+### Deploy
+
+cargo stylus deploy \
+  --endpoint='http://localhost:8547' \
+  --private-key="0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659"
 
 ### Used to insert order on tick 1 at index 0
 

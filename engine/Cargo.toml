@@ -1,10 +1,10 @@
 [package]
-name = "liquid-book"
+name = "liquid-book-engine"
 version = "0.1.9"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-homepage = "https://github.com/OffchainLabs/liquid-book"
-repository = "https://github.com/OffchainLabs/liquid-book"
+homepage = "https://github.com/OffchainLabs/liquid-book-engine"
+repository = "https://github.com/OffchainLabs/liquid-book-engine"
 keywords = ["arbitrum", "ethereum", "stylus", "alloy"]
 description = "Stylus hello world example"
 
@@ -26,7 +26,7 @@ export-abi = ["stylus-sdk/export-abi"]
 debug = ["stylus-sdk/debug"]
 
 [[bin]]
-name = "liquid-book"
+name = "liquid-book-engine"
 path = "src/main.rs"
 
 [lib]
