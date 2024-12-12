@@ -15,6 +15,8 @@ mini-alloc = "0.4.2"
 stylus-sdk = { version = "0.6.0", features = ["debug", "hostio"] }
 hex = "0.4.3"
 dotenv = "0.15.0"
+ruint-macro = "1.2.1"
+ruint = "1.12.3"
 
 [dev-dependencies]
 tokio = { version = "1.12.0", features = ["full"] }
