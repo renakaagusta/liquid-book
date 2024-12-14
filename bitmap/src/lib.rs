@@ -9,12 +9,12 @@ use maths::tick_bitmap::TickBitmap;
 
 #[storage]
 #[entrypoint]
-pub struct BitmapStorage {
+pub struct BitmapManager {
     storage: StorageMap<i16, StorageU256>,
 }
 
 #[public]
-impl BitmapStorage {
+impl BitmapManager {
     pub fn position(&mut self, tick: i32) -> (i16, u8) {
         let (word_pos, bit_pos) = TickBitmap::position(tick);
         (word_pos, bit_pos)
@@ -30,7 +30,7 @@ impl BitmapStorage {
         console!("{:b}", bitmap);
     }
 
-    pub fn next_tick(&mut self, tick: i32, lte: bool) -> (i32, bool) {
+    pub fn next_tick(self, tick: i32, lte: bool) -> (i32, bool) {
         let (next, initialized) =
             TickBitmap::next_initialized_tick_within_one_word(&self.storage, tick, 1, lte);
         (next, initialized)

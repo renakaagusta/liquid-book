@@ -2,10 +2,11 @@
 #![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
 
+use alloy_primitives::I32;
 use stylus_sdk::{
     alloy_primitives::{Address, U128, U256},
     console,
-    prelude::{sol_storage, entrypoint, sol_interface, public},
+    prelude::{entrypoint, public, sol_interface, sol_storage},
 };
 
 sol_storage! {
@@ -38,11 +39,25 @@ sol_interface! {
         function encodeOrderData(address user, uint256 volume) external view returns (uint8[32] memory);
         function decodeOrderData(uint8[] memory encoded) external view returns (address, uint256);
     }
+
+    interface IBitmapStorage {
+        function position(int32 tick) external returns (int16, uint8);
+        function flip(int32 tick) external returns (int16, uint8);
+        function getBitmap(int32 tick) external returns (uint256);
+        function nextTick(int32 tick, bool lte) external returns (int32, bool);
+        function testBitmap() external;
+    }
+
 }
 
 #[public]
 impl LiquidBookEngine {
-    pub fn initialize(&mut self, tick_manager_address: Address, bitmap_manager_address: Address, order_manager_address: Address) {
+    pub fn initialize(
+        &mut self,
+        tick_manager_address: Address,
+        bitmap_manager_address: Address,
+        order_manager_address: Address,
+    ) {
         self.tick_manager_address.set(tick_manager_address);
         self.bitmap_manager_address.set(bitmap_manager_address);
         self.order_manager_address.set(order_manager_address);
@@ -54,17 +69,28 @@ impl LiquidBookEngine {
         let mut best_ticks: Vec<U256> = Vec::new();
         let current_tick = tick_manager.get_current_tick(self)?;
 
+        let bitmap_manager = IBitmapStorage::new(self.bitmap_manager_address.get());
+        let from_left: bool = if is_buy { false } else { true };
+
         loop {
-            let tick_data = if is_buy {
-                tick_manager.get_tick_data(self, current_tick - counter)
+            current_tick = bitmap_manager.next_tick(current_tick, is_buy);
+
+            let current_tick = if from_left {
+                current_tick
             } else {
-                tick_manager.get_tick_data(self, current_tick + counter)
+                current_tick + U256::from(1)
             };
 
-            let (_, _, volume, is_buy) = tick_data.unwrap();
-
-            if is_buy && volume > U256::ZERO {
                 best_ticks.push(U256::from(U128::from(current_tick) - U128::from(counter)));
+                best_ticks.push(U256::from(U128::from(current_tick) - U128::from(counter)));
+            }
+
+            if counter >= U256::from(5) || best_ticks.len() >= 5 {
+                break;
+            }
+
+            counter += U256::from(1);
+            best_ticks.push(U256::from(U128::from(current_tick) - U128::from(counter)));
             }
 
             if counter >= U256::from(5) || best_ticks.len() >= 5 {
@@ -130,7 +156,7 @@ impl LiquidBookEngine {
         let order_manager_address = self.order_manager_address.get();
         let tick_manager = ITickManager::new(tick_manager_address);
         let order_manager = IOrderManager::new(order_manager_address);
-        
+
         let mut remaining_incoming_order_volume = incoming_order_volume;
         let possible_ticks = self.top_n_best_ticks(incoming_order_is_buy).unwrap();
 
@@ -140,13 +166,13 @@ impl LiquidBookEngine {
             possible_ticks
                 .iter()
                 .filter(|tick| incoming_order_tick > **tick)
-                .cloned()  
+                .cloned()
                 .collect()
         } else {
             possible_ticks
                 .iter()
                 .filter(|tick| incoming_order_tick < **tick)
-                .cloned() 
+                .cloned()
                 .collect()
         };
 
