@@ -12,6 +12,12 @@ use stylus_sdk::{
     ArbResult,
 };
 
+pub mod bitmap_storage {
+    pub fn function() {
+        println!("called `cool::function()`");
+    }
+}
+
 pub mod order_book;
 use order_book::tick_bitmap::{self, TickBitmap, TickBitmapStorage};
 
@@ -23,7 +29,7 @@ pub struct OrderBook {
 
 #[public]
 impl OrderBook {
-    fn flip(&mut self, tick: i32) {
+    pub fn flip(&mut self, tick: i32) {
         TickBitmap::flip_tick(&mut self.bitmap_storage, tick, 1);
     }
 

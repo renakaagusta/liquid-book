@@ -1,5 +1,5 @@
 [package]
-name = "liquid-book"
+name = "bitmap"
 version = "0.1.9"
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -9,7 +9,7 @@ keywords = ["arbitrum", "ethereum", "stylus", "alloy"]
 description = "Stylus hello world example"
 
 [dependencies]
-alloy-primitives = "=0.7.6" 
+alloy-primitives = "=0.7.6"
 alloy-sol-types = "=0.7.6"
 mini-alloc = "0.4.2"
 stylus-sdk = { version = "0.6.0", features = ["debug", "hostio"] }
@@ -18,10 +18,14 @@ dotenv = "0.15.0"
 ruint-macro = "1.2.1"
 ruint = "1.12.3"
 
+
 [dev-dependencies]
 tokio = { version = "1.12.0", features = ["full"] }
 ethers = "2.0"
 eyre = "0.6.8"
+motsu = "0.2.0"
+motsu-proc = "0.2.0"
+
 
 [features]
 export-abi = ["stylus-sdk/export-abi"]
@@ -40,3 +44,5 @@ strip = true
 lto = true
 panic = "abort"
 opt-level = "s"
+
+[workspace]
