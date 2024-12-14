@@ -81,23 +81,7 @@ impl LiquidBookEngine {
                 current_tick + U256::from(1)
             };
 
-                best_ticks.push(U256::from(U128::from(current_tick) - U128::from(counter)));
-                best_ticks.push(U256::from(U128::from(current_tick) - U128::from(counter)));
-            }
-
-            if counter >= U256::from(5) || best_ticks.len() >= 5 {
-                break;
-            }
-
-            counter += U256::from(1);
             best_ticks.push(U256::from(U128::from(current_tick) - U128::from(counter)));
-            }
-
-            if counter >= U256::from(5) || best_ticks.len() >= 5 {
-                break;
-            }
-
-            counter += U256::from(1);
         }
 
         Ok(best_ticks)
@@ -189,7 +173,9 @@ impl LiquidBookEngine {
                     let mut index = start_index % U256::from(256);
 
                     loop {
-                        let order = order_manager.read_order(&*self, tick, U256::from(index)).unwrap();
+                        let order = order_manager
+                            .read_order(&*self, tick, U256::from(index))
+                            .unwrap();
                         let (_, order_volume) = order;
 
                         if order_volume != U256::ZERO {
