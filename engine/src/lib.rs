@@ -2,9 +2,9 @@
 #![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
 
-use alloy_primitives::I32;
+use alloy_primitives::Signed;
 use stylus_sdk::{
-    alloy_primitives::{Address, U128, U256},
+    alloy_primitives::{Address, U128, U256, I32},
     console,
     prelude::{entrypoint, public, sol_interface, sol_storage},
 };
@@ -44,7 +44,7 @@ sol_interface! {
         function position(int32 tick) external returns (int16, uint8);
         function flip(int32 tick) external returns (int16, uint8);
         function getBitmap(int32 tick) external returns (uint256);
-        function nextTick(int32 tick, bool lte) external returns (int32, bool);
+        function nextTick(int32 tick, bool lte) external view returns (int32, bool);
         function testBitmap() external;
     }
 
@@ -65,20 +65,20 @@ impl LiquidBookEngine {
 
     pub fn top_n_best_ticks(&self, is_buy: bool) -> Result<Vec<U256>, Vec<u8>> {
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
-        let mut counter = U256::from(0);
+        let counter = U256::from(0);
         let mut best_ticks: Vec<U256> = Vec::new();
-        let current_tick = tick_manager.get_current_tick(self)?;
+        let current_tick = tick_manager.get_current_tick(self)?.try_into().unwrap();
 
         let bitmap_manager = IBitmapStorage::new(self.bitmap_manager_address.get());
         let from_left: bool = if is_buy { false } else { true };
 
         loop {
-            current_tick = bitmap_manager.next_tick(current_tick, is_buy);
+            let (current_tick, _) = bitmap_manager.next_tick(self, current_tick, is_buy).unwrap();
 
             let current_tick = if from_left {
                 current_tick
             } else {
-                current_tick + U256::from(1)
+                current_tick + 1
             };
 
             best_ticks.push(U256::from(U128::from(current_tick) - U128::from(counter)));
