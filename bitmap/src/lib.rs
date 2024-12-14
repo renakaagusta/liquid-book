@@ -30,11 +30,11 @@ impl BitmapManager {
         console!("{:b}", bitmap);
     }
 
-    pub fn next_tick(self, tick: i32, lte: bool) -> (i32, bool) {
-        let (next, initialized) =
-            TickBitmap::next_initialized_tick_within_one_word(&self.storage, tick, 1, lte);
-        (next, initialized)
-    }
+    pub fn next_tick(&mut self, tick: i32, lte: bool) -> (i32, bool) {
+            let (next, initialized) =
+                TickBitmap::next_initialized_tick_within_one_word(&self.storage, tick, 1, lte);
+            (next, initialized)
+        }
 
     //TODO: remove test function
     pub fn test_bitmap(&mut self) {
