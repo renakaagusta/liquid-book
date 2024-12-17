@@ -3,7 +3,7 @@
 private_key="0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659"
 
 # Define the modules
-modules=("bitmap" "engine" "order-manager" "tick-mawnager")
+modules=("bitmap" "engine" "order-manager" "tick-manager")
 
 # Define the deployment command
 deploy_command="cargo stylus deploy -e http://localhost:8547 --private-key \$private_key"
