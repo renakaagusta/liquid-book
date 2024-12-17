@@ -2,9 +2,8 @@
 #![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
 
-use alloy_primitives::Signed;
 use stylus_sdk::{
-    alloy_primitives::{Address, U128, U256, I32},
+    alloy_primitives::{Address, I32, U128, U256},
     console,
     prelude::{entrypoint, public, sol_interface, sol_storage},
 };
@@ -73,7 +72,9 @@ impl LiquidBookEngine {
         let from_left: bool = if is_buy { false } else { true };
 
         loop {
-            let (current_tick, _) = bitmap_manager.next_tick(self, current_tick, is_buy).unwrap();
+            let (current_tick, _) = bitmap_manager
+                .next_tick(self, current_tick, is_buy)
+                .unwrap();
 
             let current_tick = if from_left {
                 current_tick
@@ -81,7 +82,11 @@ impl LiquidBookEngine {
                 current_tick + 1
             };
 
-            best_ticks.push(U256::from(U128::from(current_tick) - U128::from(counter)));
+            best_ticks.push(U256::from(U128::from(current_tick)));
+
+            if best_ticks.len() == 5 {
+                break;
+            }
         }
 
         Ok(best_ticks)
