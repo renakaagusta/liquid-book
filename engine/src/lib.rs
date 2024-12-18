@@ -64,27 +64,31 @@ impl LiquidBookEngine {
 
     pub fn top_n_best_ticks(&self, is_buy: bool) -> Result<Vec<U256>, Vec<u8>> {
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
-        let counter = U256::from(0);
+        let mut counter: i8 = 0;
         let mut best_ticks: Vec<U256> = Vec::new();
-        let current_tick = tick_manager.get_current_tick(self)?.try_into().unwrap();
+        let mut current_tick = tick_manager
+            .get_current_tick(self)
+            .unwrap()
+            .to_string()
+            .parse::<i32>()
+            .unwrap_or(0);
 
         let bitmap_manager = IBitmapStorage::new(self.bitmap_manager_address.get());
-        let from_left: bool = if is_buy { false } else { true };
 
         loop {
-            let (current_tick, _) = bitmap_manager
+            let (next_bitmap, initialized) = bitmap_manager
                 .next_tick(self, current_tick, is_buy)
                 .unwrap();
 
-            let current_tick = if from_left {
-                current_tick
-            } else {
-                current_tick + 1
-            };
+            current_tick = if is_buy { next_bitmap - 1 } else { next_bitmap };
 
-            best_ticks.push(U256::from(U128::from(current_tick)));
+            if initialized {
+                best_ticks.push(U256::from(next_bitmap));
+            }
 
-            if best_ticks.len() == 5 {
+            counter = counter + 1;
+
+            if counter == 5 {
                 break;
             }
         }
