@@ -34,12 +34,13 @@ done
 # Print all addresses
 echo "All deployed addresses:"
 for module in "${!addresses[@]}"; do
-  echo "$module: ${addresses[$module]}"
+  snake_case_module=$(echo "$module" | sed -r 's/([a-z])([A-Z])/\1_\2/g; s/-/_/g' | tr '[:lower:]' '[:upper:]')
+  echo "export "${snake_case_module}_ADDRESS=${addresses[$module]}""
 done
 
 # Define the RPC URL
 rpc_url="http://localhost:8547"
 
-cast send "${addresses[engine]}" "initialize(address,address,address)" "${addresses["tick-manager"]}" "${addresses[bitmap]}" "${addresses["order-manager"]}" --rpc-url $rpc_url --private-key $private_key
-cast send "${addresses["tick-manager"]}" "initialize(address,address,address)" "${addresses[engine]}" "${addresses[bitmap]}" "${addresses["order-manager"]}" --rpc-url $rpc_url --private-key $private_key
-cast send "${addresses["order-manager"]}" "initialize(address,address,address)" "${addresses[engine]}" "${addresses[bitmap]}" "${addresses["tick-manager"]}" --rpc-url $rpc_url --private-key $private_key
+cast send "${addresses[engine]}" "initialize(address,address,address)" "${addresses["tick-manager"]}" "${addresses[bitmap]}" "${addresses["order-manager"]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+cast send "${addresses["tick-manager"]}" "initialize(address)" "${addresses[bitmap]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+cast send "${addresses["order-manager"]}" "initialize(address,address,address)" "${addresses[engine]}" "${addresses[bitmap]}" "${addresses["tick-manager"]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1

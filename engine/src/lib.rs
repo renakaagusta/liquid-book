@@ -12,7 +12,6 @@ sol_storage! {
     #[entrypoint]
     pub struct LiquidBookEngine {
         address tick_manager_address;
-        address bitmap_manager_address;
         address order_manager_address;
     }
 }
@@ -45,55 +44,17 @@ sol_interface! {
         function getBitmap(int32 tick) external returns (uint256);
         function nextTick(int32 tick, bool lte) external view returns (int32, bool);
         function testBitmap() external;
+        //TODO: get top n best ticks
+        // function getTopNBestTicks(bool is_buy) external view returns (uint256[] memory);
     }
 
 }
 
 #[public]
 impl LiquidBookEngine {
-    pub fn initialize(
-        &mut self,
-        tick_manager_address: Address,
-        bitmap_manager_address: Address,
-        order_manager_address: Address,
-    ) {
+    pub fn initialize(&mut self, tick_manager_address: Address, order_manager_address: Address) {
         self.tick_manager_address.set(tick_manager_address);
-        self.bitmap_manager_address.set(bitmap_manager_address);
         self.order_manager_address.set(order_manager_address);
-    }
-
-    pub fn top_n_best_ticks(&self, is_buy: bool) -> Result<Vec<U256>, Vec<u8>> {
-        let tick_manager = ITickManager::new(self.tick_manager_address.get());
-        let mut counter: i8 = 0;
-        let mut best_ticks: Vec<U256> = Vec::new();
-        let mut current_tick = tick_manager
-            .get_current_tick(self)
-            .unwrap()
-            .to_string()
-            .parse::<i32>()
-            .unwrap_or(0);
-
-        let bitmap_manager = IBitmapStorage::new(self.bitmap_manager_address.get());
-
-        loop {
-            let (next_bitmap, initialized) = bitmap_manager
-                .next_tick(self, current_tick, is_buy)
-                .unwrap();
-
-            current_tick = if is_buy { next_bitmap - 1 } else { next_bitmap };
-
-            if initialized {
-                best_ticks.push(U256::from(next_bitmap));
-            }
-
-            counter = counter + 1;
-
-            if counter == 5 {
-                break;
-            }
-        }
-
-        Ok(best_ticks)
     }
 
     fn execute_match(
@@ -150,8 +111,10 @@ impl LiquidBookEngine {
         let tick_manager = ITickManager::new(tick_manager_address);
         let order_manager = IOrderManager::new(order_manager_address);
 
-        let mut remaining_incoming_order_volume = incoming_order_volume;
-        let possible_ticks = self.top_n_best_ticks(incoming_order_is_buy).unwrap();
+        let mut remaining_incoming_order_volume: alloy_primitives::Uint<256, 4> =
+            incoming_order_volume;
+        //TODO: get top n best ticks from bitmap - top_n_best_ticks
+        let possible_ticks: Vec<U256> = vec![];
 
         let filtered_possible_ticks: Vec<U256> = if incoming_order_is_market {
             possible_ticks
@@ -169,7 +132,8 @@ impl LiquidBookEngine {
                 .collect()
         };
 
-        if filtered_possible_ticks.is_empty() {
+        if !filtered_possible_ticks.is_empty() {
+            console!("Has possible ticks");
             let mut last_tick = U256::from(0);
 
             for tick in filtered_possible_ticks {
@@ -220,6 +184,8 @@ impl LiquidBookEngine {
                 );
             }
         } else {
+            console!("No possible ticks");
+
             let current_tick = tick_manager.get_current_tick(&*self).unwrap();
             let _ = order_manager.insert_order(
                 self,

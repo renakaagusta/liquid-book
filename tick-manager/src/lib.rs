@@ -4,8 +4,9 @@ extern crate alloc;
 
 use stylus_sdk::{
     alloy_primitives::{keccak256, Address, U128, U256},
+    console,
     hostio::{storage_cache_bytes32, storage_flush_cache, storage_load_bytes32},
-    prelude::{sol_storage, public, entrypoint},
+    prelude::{entrypoint, public, sol_interface, sol_storage},
 };
 
 sol_storage! {
@@ -31,6 +32,15 @@ sol_storage! {
     }
 }
 
+sol_interface! {
+    interface IBitmapStorage {
+        function position(int32 tick) external returns (int16, uint8);
+        function flip(int32 tick) external returns (int16, uint8);
+        function nextTick(int32 tick, bool lte) external view returns (int32, bool);
+    }
+
+}
+
 #[public]
 impl TickManager {
     pub fn initialize(
@@ -50,6 +60,7 @@ impl TickManager {
         let mut updated_length = tick_data.length.get();
         let mut updated_volume = tick_data.volume.get();
         let mut updated_is_buy = tick_data.is_buy.get();
+        let initial_volume = tick_data.volume.get();
 
         if is_existing_order {
             updated_volume -= U128::from(volume);
@@ -89,19 +100,51 @@ impl TickManager {
             .setter(U128::from(tick))
             .volume
             .set(updated_volume);
+
+        console!(
+            "Updated tick: {}, start_index: {}, length: {}, volume: {}, is_buy: {}",
+            tick,
+            updated_start_index,
+            updated_length,
+            updated_volume,
+            updated_is_buy
+        );
+
+        if initial_volume == U128::ZERO && updated_volume != U128::ZERO
+            || initial_volume == U128::ZERO && updated_volume == U128::ZERO
+        {
+            let converted_tick: i32 = tick.try_into().unwrap();
+            let bitmap_manager = IBitmapStorage::new(self.bitmap_manager_address.get());
+
+            console!("Flipping tick: {}", converted_tick);
+            bitmap_manager.flip(self, converted_tick);
+        }
     }
 
     pub fn get_tick_data(&self, tick: U256) -> (U256, U256, U256, bool) {
-        let tick_data = self.ticks
-            .get(U128::from(tick));
-        (U256::from(tick_data.start_index.get()), U256::from(tick_data.length.get()), U256::from(tick_data.volume.get()), tick_data.is_buy.get())
+        let tick_data = self.ticks.get(U128::from(tick));
+        (
+            U256::from(tick_data.start_index.get()),
+            U256::from(tick_data.length.get()),
+            U256::from(tick_data.volume.get()),
+            tick_data.is_buy.get(),
+        )
     }
 
-    pub fn set_tick_data(&mut self, tick: U256, tick_data: (U256, U256, U256, bool))  {
+    pub fn set_tick_data(&mut self, tick: U256, tick_data: (U256, U256, U256, bool)) {
         let (start_index, length, volume, is_buy) = tick_data;
-        self.ticks.setter(U128::from(tick)).start_index.set(U128::from(start_index));
-        self.ticks.setter(U128::from(tick)).length.set(U128::from(length));
-        self.ticks.setter(U128::from(tick)).volume.set(U128::from(volume));
+        self.ticks
+            .setter(U128::from(tick))
+            .start_index
+            .set(U128::from(start_index));
+        self.ticks
+            .setter(U128::from(tick))
+            .length
+            .set(U128::from(length));
+        self.ticks
+            .setter(U128::from(tick))
+            .volume
+            .set(U128::from(volume));
         self.ticks.setter(U128::from(tick)).is_buy.set(is_buy);
     }
 
@@ -109,7 +152,7 @@ impl TickManager {
         U256::from(self.current_tick.get())
     }
 
-    pub fn set_current_tick(&mut self, tick: U256)  {
+    pub fn set_current_tick(&mut self, tick: U256) {
         self.current_tick.set(U128::from(tick));
     }
 }

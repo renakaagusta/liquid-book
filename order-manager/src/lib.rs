@@ -56,9 +56,8 @@ impl OrderManager {
         let tick_manager_address = self.tick_manager_address.get();
         let tick_manager = ITickManager::new(tick_manager_address);
 
-        let (start_index, length, tick_volume, tick_is_buy) = tick_manager
-            .get_tick_data(&*self, tick)
-            .unwrap();
+        let (start_index, length, tick_volume, tick_is_buy) =
+            tick_manager.get_tick_data(&*self, tick).unwrap();
 
         let order_index = start_index + length % U256::from(256);
 
