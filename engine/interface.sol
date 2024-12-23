@@ -7,9 +7,11 @@
 pragma solidity ^0.8.23;
 
 interface ILiquidBookEngine {
-    function initialize(address tick_manager_address, address order_manager_address) external;
+    function getOrder(uint256 id) external view returns (address, uint256, uint256, bool, bool);
 
-    function executeMatch((uint256,uint256,uint256)[] memory valid_orders, uint256 incoming_order_quantity) external returns (uint256);
+    function getOrderTick(uint256 tick) external view returns (uint256, uint256, uint256);
 
-    function matchMarketOrder(uint256 incoming_order_tick, uint256 incoming_order_volume, address incoming_order_user, bool incoming_order_is_buy, bool incoming_order_is_market) external;
+    function placeLimitOrder(uint256 tick, uint256 amount, bool is_buy) external returns (uint256);
+
+    function cancelOrder(uint256 id) external;
 }

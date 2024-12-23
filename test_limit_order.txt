@@ -1,0 +1,57 @@
+export RPC_URL="http://localhost:8547"
+export STYLUS_LOCAL_DEV_PK="0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659"
+export ENGINE_ADDRESS=0x7e32b54800705876d3b5cfbc7d9c226a211f7c1a
+export BITMAP_ADDRESS=0xa6e41ffd769491a42a6e5ce453259b93983a22ef
+
+#Deploy Bitmap and init engine
+cast send $ENGINE_ADDRESS "initialize(address)" $BITMAP_ADDRESS --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK
+
+#Test setup order book
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 105 100 false
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 104 100 false
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 103 100 false
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 102 100 false
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 101 100 false
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 100 100 false
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 99 100 true
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 98 100 true
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 97 100 true
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 96 100 true
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 95 100 true
+
+#Test Bitmap
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $BITMAP_ADDRESS "getBitmap(int16)" 0
+
+#Test inital current tick
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $BITMAP_ADDRESS "setCurrentTick(uint256)" 100
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $BITMAP_ADDRESS "getCurrentTick()(uint256)"
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $BITMAP_ADDRESS "topNBestTicks(bool)(uint256[])" false
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $BITMAP_ADDRESS "topNBestTicks(bool)(uint256[])" true
+
+#Test match order book
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 101 100 true
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 99 100 false
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "getOrderTick(uint256)(uint256, uint256, uint256)" 101
+
+#Test match order
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 100 100 true
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 100 100 true
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 100 100 true
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 100 50 false
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 100 250 false
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "getOrder(uint256)(address, uint256, uint256, bool, bool)" 0
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "getOrder(uint256)(address, uint256, uint256, bool, bool)" 1
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "getOrder(uint256)(address, uint256, uint256, bool, bool)" 2
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "getOrder(uint256)(address, uint256, uint256, bool, bool)" 3
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "getOrder(uint256)(address, uint256, uint256, bool, bool)" 4
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "getOrderTick(uint256)(uint256, uint256, uint256)" 100
+
+#Test cancel order
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 100 100 true
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "cancelOrder(uint256)" 7
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "getOrder(uint256)(address, uint256, uint256, bool, bool)" 5
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 100 100 false
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "getOrder(uint256)(address, uint256, uint256, bool, bool)" 6
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "placeLimitOrder(uint256,uint256,bool)(uint256)" 100 100 true
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "getOrder(uint256)(address, uint256, uint256, bool, bool)" 7
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "getOrderTick(uint256)(uint256, uint256, uint256)" 100

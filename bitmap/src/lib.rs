@@ -1,7 +1,8 @@
 // Allow cargo stylus export-abi to generate a main function.
 #![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
-use stylus_sdk::storage::{StorageAddress, StorageMap, StorageU256};
+use alloy_primitives::{Address, U16};
+use stylus_sdk::storage::{StorageAddress, StorageMap, StorageU16, StorageU256};
 use stylus_sdk::{
     alloy_primitives::{U128, U256},
     console,
@@ -16,7 +17,7 @@ use maths::tick_bitmap::TickBitmap;
 #[entrypoint]
 pub struct BitmapManager {
     storage: StorageMap<i16, StorageU256>,
-    tick_manager_address: StorageAddress,
+    current_tick: StorageU256,
 }
 
 sol_interface! {
@@ -32,33 +33,35 @@ impl BitmapManager {
         (word_pos, bit_pos)
     }
 
+    pub fn get_current_tick(&self) -> U256 {
+        U256::from(self.current_tick.get())
+    }
+
+    pub fn set_current_tick(&mut self, tick: U256) {
+        self.current_tick.set(U256::from(tick));
+    }
+
     pub fn top_n_best_ticks(&self, is_buy: bool) -> Result<Vec<U256>, Vec<u8>> {
-        let tick_manager = ITickManager::new(self.tick_manager_address.get());
-        let mut current_tick = tick_manager
-            .get_current_tick(self)
-            .unwrap()
+        let mut counter = U256::from(0);
+        let mut best_ticks: Vec<U256> = Vec::new();
+        let mut current_tick = self
+            .current_tick
+            .get()
             .to_string()
             .parse::<i32>()
             .unwrap_or(0);
-        let mut counter = U256::from(0);
-        let mut best_ticks: Vec<U256> = Vec::new();
-
-        let from_left: bool = if is_buy { false } else { true };
 
         loop {
-            let (current_tick, initialized) = self.next_tick(current_tick, is_buy);
-
-            let current_tick = if from_left {
-                current_tick
-            } else {
-                current_tick + 1
-            };
+            let (next_tick, initialized) = self.next_tick(current_tick, !is_buy);
 
             if initialized {
-                best_ticks.push(U256::from(U128::from(current_tick)));
+                best_ticks.push(U256::from(next_tick));
             }
 
-            counter = counter + U256::from(1);
+            current_tick = if !is_buy { next_tick - 1 } else { next_tick };
+            counter += U256::from(1);
+            console!("current_tick: {}", current_tick);
+            console!("counter: {}", counter);
 
             if counter == U256::from(5) {
                 break;

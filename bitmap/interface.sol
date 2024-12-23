@@ -6,14 +6,16 @@
 // SPDX-License-Identifier: MIT-OR-APACHE-2.0
 pragma solidity ^0.8.23;
 
-interface IBitmapStorage {
+interface IBitmapManager {
     function position(int32 tick) external returns (int16, uint8);
+
+    function topNBestTicks(bool is_buy) external view returns (uint256[] memory);
 
     function flip(int32 tick) external returns (int16, uint8);
 
-    function getBitmap(int32 tick) external returns (uint256);
+    function getBitmap(int16 index) external;
 
-    function nextTick(int32 tick, bool lte) external returns (int32, bool);
+    function nextTick(int32 tick, bool lte) external view returns (int32, bool);
 
     function testBitmap() external;
 }

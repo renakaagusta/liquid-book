@@ -5,7 +5,7 @@
 private_key="0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659"
 
 # Define the modules
-modules=("bitmap" "engine" "order-manager" "tick-manager")
+modules=("bitmap" "engine")
 
 # Define the deployment command
 deploy_command="cargo stylus deploy -e http://localhost:8547 --private-key \$private_key --no-verify"
@@ -41,6 +41,19 @@ done
 # Define the RPC URL
 rpc_url="http://localhost:8547"
 
-cast send "${addresses[engine]}" "initialize(address,address,address)" "${addresses["tick-manager"]}" "${addresses[bitmap]}" "${addresses["order-manager"]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
-cast send "${addresses["tick-manager"]}" "initialize(address)" "${addresses[bitmap]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
-cast send "${addresses["order-manager"]}" "initialize(address,address,address)" "${addresses[engine]}" "${addresses[bitmap]}" "${addresses["tick-manager"]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+cast send "${addresses[engine]}" "initialize(address)" "${addresses[bitmap]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+
+echo "Place sell orders..."
+# Place sell orders (false = sell)
+for tick in {105..100}; do
+  cast send --rpc-url $rpc_url --private-key $private_key "${addresses[engine]}" "placeLimitOrder(uint256,uint256,bool)(uint256)" $tick 100 false > /dev/null 2>&1
+done
+
+echo "Place buy orders..."
+# Place buy orders (true = buy)
+for tick in {99..95}; do
+  cast send --rpc-url $rpc_url --private-key $private_key "${addresses[engine]}" "placeLimitOrder(uint256,uint256,bool)(uint256)" $tick 100 true > /dev/null 2>&1
+done
+
+echo "Set initial tick"
+cast send --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "setCurrentTick(uint256)" 100 > /dev/null 2>&1
