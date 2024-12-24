@@ -5,7 +5,8 @@
 private_key="0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659"
 
 # Define the modules
-modules=("bitmap" "engine")
+# modules=("bitmap" "engine")
+modules=("bitmap" "tick" "order" "matcher" "engine")
 
 # Define the deployment command
 deploy_command="cargo stylus deploy -e http://localhost:8547 --private-key \$private_key --no-verify"
@@ -41,7 +42,19 @@ done
 # Define the RPC URL
 rpc_url="http://localhost:8547"
 
-cast send "${addresses[engine]}" "initialize(address)" "${addresses[bitmap]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+# cast send "${addresses[engine]}" "initialize(address)" "${addresses[bitmap]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+
+# Initialize engine
+cast send "${addresses[engine]}" "initialize(address,address,address,address)" "${addresses[tick]}" "${addresses[order]}" "${addresses[bitmap]}" "${addresses[matcher]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+
+# Initialize matcher
+cast send "${addresses[matcher]}" "initialize(address,address)" "${addresses[tick]}" "${addresses[order]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+
+# Initialize tick
+cast send "${addresses[tick]}" "initialize(address,address,address)" "${addresses[engine]}" "${addresses[bitmap]}" "${addresses[order]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+
+# Initialize order
+cast send "${addresses[order]}" "initialize(address,address,address)" "${addresses[engine]}" "${addresses[bitmap]}" "${addresses[tick]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
 
 echo "Place sell orders..."
 # Place sell orders (false = sell)

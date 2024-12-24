@@ -1,4 +1,4 @@
-//! Example on how to interact with a deployed `liquid-book-storage` contract using defaults.
+//! Example on how to interact with a deployed `liquid-book-engine` contract using defaults.
 //! This example uses ethers-rs to instantiate the contract using a Solidity ABI.
 //! Then, it attempts to check the current counter value, increment it via a tx,
 //! and check the value again. The deployed contract is fully written in Rust and compiled to WASM
