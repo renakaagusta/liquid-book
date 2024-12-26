@@ -12,17 +12,17 @@ impl TickBitmap {
         (word_pos, bit_pos)
     }
 
-    pub fn flip_tick(bitmap_storage: &mut TickBitmapStorage, tick: i32, tick_spacing: i32) {
+    pub fn flip_tick(bitmap_manager: &mut TickBitmapStorage, tick: i32, tick_spacing: i32) {
         assert_eq!(tick % tick_spacing, 0);
 
         let (word_pos, bit_pos) = Self::position(tick / tick_spacing);
         let mask = U256::from(1) << bit_pos;
-        let bitmap = bitmap_storage.get(word_pos) ^ mask;
-        bitmap_storage.setter(word_pos).set(bitmap);
+        let bitmap = bitmap_manager.get(word_pos) ^ mask;
+        bitmap_manager.setter(word_pos).set(bitmap);
     }
 
     pub fn next_initialized_tick_within_one_word(
-        bitmap_storage: &TickBitmapStorage,
+        bitmap_manager: &TickBitmapStorage,
         tick: i32,
         tick_spacing: i32,
         lte: bool,
@@ -36,7 +36,7 @@ impl TickBitmap {
         if lte {
             let (word_pos, bit_pos) = Self::position(compressed);
             let mask = (U256::from(1) << bit_pos) - U256::from(1) + (U256::from(1) << bit_pos);
-            let masked = bitmap_storage.get(word_pos) & mask;
+            let masked = bitmap_manager.get(word_pos) & mask;
 
             let initialized = masked != U256::from(0);
             let next = if initialized {
@@ -50,7 +50,7 @@ impl TickBitmap {
         } else {
             let (word_pos, bit_pos) = Self::position(compressed + 1);
             let mask = !((U256::from(1) << bit_pos) - U256::from(1));
-            let masked = bitmap_storage.get(word_pos) & mask;
+            let masked = bitmap_manager.get(word_pos) & mask;
 
             let initialized = masked != U256::from(0);
             let next = if initialized {

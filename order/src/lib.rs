@@ -2,17 +2,26 @@
 #![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
 
+use alloy_sol_macro::sol;
 use stylus_sdk::{
-    alloy_primitives::{keccak256, Address, U128, U256},
+    alloy_primitives::{keccak256, Address, U256},
     hostio::{storage_cache_bytes32, storage_flush_cache, storage_load_bytes32},
-    prelude::{sol_storage, public, entrypoint},
+    prelude::*,
+    evm,
+    console
 };
+
+sol! {
+    event InsertOrder(address indexed user, uint256 indexed tick, bool indexed is_buy, uint256 volume);
+    event UpdateOrder(uint256 indexed tick, uint256 indexed order_index, uint256 volume);
+}
 
 sol_storage! {
     #[entrypoint]
-    pub struct LiquidBookStorage {
-        uint128 current_tick;
-        mapping(uint128 => Tick) ticks;
+    pub struct OrderManager {
+        address engine_address;
+        address tick_manager_address;
+        address bitmap_manager_address;
     }
 
     pub struct Order {
@@ -28,16 +37,54 @@ sol_storage! {
     }
 }
 
+sol_interface! {
+    interface ITickManager {
+        function setTickData(uint256 tick, uint256 volume, bool is_buy, bool is_existing_order) external;
+        function getTickData(uint256 tick) external view returns (uint256, uint256, uint256, bool);
+        function getCurrentTick() external view returns (uint256);
+        function setCurrentTick(uint256 tick) external returns (uint256);
+    }
+}
+
 #[public]
-impl LiquidBookStorage {
+impl OrderManager {
+    pub fn initialize(
+        &mut self,
+        engine_address: Address,
+        bitmap_manager_address: Address,
+        tick_manager_address: Address,
+    ) {
+        self.engine_address.set(engine_address);
+        self.bitmap_manager_address.set(bitmap_manager_address);
+        self.tick_manager_address.set(tick_manager_address);
+    }
+
     pub fn insert_order(&mut self, tick: U256, volume: U256, user: Address, is_buy: bool) {
-        let tick_data = self.ticks.get(U128::from(tick));
-        let order_index = tick_data.start_index.get() + tick_data.length.get() % U128::from(256);
-        self.write_order(tick, U256::from(order_index), user, volume);
-        self.update_tick(tick, volume, is_buy, false);
+        console!("ORDER :: insert order");
+
+        let tick_manager_address = self.tick_manager_address.get();
+        let tick_manager = ITickManager::new(tick_manager_address);
+
+        let (start_index, length, tick_volume, tick_is_buy) =
+            tick_manager.get_tick_data(&*self, tick).unwrap();
+
+        let order_index = start_index + length % U256::from(256);
+
+        self.write_order(tick, order_index, user, volume);
+        tick_manager.set_tick_data(self, tick, volume, is_buy, false);
+    
+        evm::log(InsertOrder {
+            user: user,
+            tick: tick,
+            is_buy: is_buy,
+            volume: volume,
+        });
     }
 
     pub fn update_order(&mut self, tick: U256, volume: U256, order_index: U256) {
+        console!("ORDER :: update order");
+
+        let tick_manager = ITickManager::new(self.tick_manager_address.get());
         let order_data = self.read_order(tick, order_index).unwrap();
 
         if volume == U256::ZERO {
@@ -46,54 +93,13 @@ impl LiquidBookStorage {
             self.write_order(tick, U256::from(order_index), order_data.0, volume);
         }
 
-        self.update_tick(tick, volume, false, true);
-    }
+        tick_manager.set_tick_data(self, tick, volume, false, true);
 
-    pub fn update_tick(&mut self, tick: U256, volume: U256, is_buy: bool, is_existing_order: bool) {
-        let tick_data = self.ticks.get(U128::from(tick));
-        let mut updated_start_index = tick_data.start_index.get();
-        let mut updated_length = tick_data.length.get();
-        let mut updated_volume = tick_data.volume.get();
-        let mut updated_is_buy = tick_data.is_buy.get();
-
-        if is_existing_order {
-            updated_volume -= U128::from(volume);
-
-            if volume == U256::ZERO {
-                updated_start_index += U128::from(1) % U128::from(256);
-
-                self.ticks
-                    .setter(U128::from(tick))
-                    .start_index
-                    .set(updated_start_index);
-            }
-        } else {
-            if tick_data.is_buy.get() != is_buy && U128::from(volume) > tick_data.volume.get() {
-                updated_volume = U128::from(volume) - tick_data.volume.get();
-                updated_is_buy = !tick_data.is_buy.get();
-
-                self.ticks
-                    .setter(U128::from(tick))
-                    .is_buy
-                    .set(updated_is_buy);
-            } else if tick_data.is_buy.get() != is_buy {
-                updated_volume = tick_data.volume.get() - U128::from(volume);
-            } else {
-                updated_volume = U128::from(0);
-            }
-
-            updated_length += U128::from(1) % U128::from(256);
-
-            self.ticks
-                .setter(U128::from(tick))
-                .length
-                .set(updated_length);
-        }
-
-        self.ticks
-            .setter(U128::from(tick))
-            .volume
-            .set(updated_volume);
+        evm::log(UpdateOrder {
+            tick: tick,
+            order_index: order_index,
+            volume: volume,
+        });
     }
 
     pub fn read_order(&self, tick: U256, order_index: U256) -> Result<(Address, U256), Vec<u8>> {
@@ -165,27 +171,5 @@ impl LiquidBookStorage {
         let volume = U256::from_be_bytes::<32>(volume_bytes);
 
         Ok((user, volume))
-    }
-
-    pub fn get_tick_data(&self, tick: U256) -> (U256, U256, U256, bool) {
-        let tick_data = self.ticks
-            .get(U128::from(tick));
-        (U256::from(tick_data.start_index.get()), U256::from(tick_data.length.get()), U256::from(tick_data.volume.get()), tick_data.is_buy.get())
-    }
-
-    pub fn set_tick_data(&mut self, tick: U256, tick_data: (U256, U256, U256, bool))  {
-        let (start_index, length, volume, is_buy) = tick_data;
-        self.ticks.setter(U128::from(tick)).start_index.set(U128::from(start_index));
-        self.ticks.setter(U128::from(tick)).length.set(U128::from(length));
-        self.ticks.setter(U128::from(tick)).volume.set(U128::from(volume));
-        self.ticks.setter(U128::from(tick)).is_buy.set(is_buy);
-    }
-
-    pub fn get_current_tick(&self) -> U256 {
-        U256::from(self.current_tick.get())
-    }
-
-    pub fn set_current_tick(&mut self, tick: U256)  {
-        self.current_tick.set(U128::from(tick));
     }
 }
