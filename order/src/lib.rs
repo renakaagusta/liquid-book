@@ -2,11 +2,19 @@
 #![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
 
+use alloy_sol_macro::sol;
 use stylus_sdk::{
-    alloy_primitives::{keccak256, Address, U128, U256},
+    alloy_primitives::{keccak256, Address, U256},
     hostio::{storage_cache_bytes32, storage_flush_cache, storage_load_bytes32},
     prelude::*,
+    evm,
+    console
 };
+
+sol! {
+    event InsertOrder(address indexed user, uint256 indexed tick, bool indexed is_buy, uint256 volume);
+    event UpdateOrder(uint256 indexed tick, uint256 indexed order_index, uint256 volume);
+}
 
 sol_storage! {
     #[entrypoint]
@@ -31,11 +39,10 @@ sol_storage! {
 
 sol_interface! {
     interface ITickManager {
-        function updateTick(uint256 tick, uint256 volume, bool is_buy, bool is_existing_order) external;
+        function setTickData(uint256 tick, uint256 volume, bool is_buy, bool is_existing_order) external;
         function getTickData(uint256 tick) external view returns (uint256, uint256, uint256, bool);
-        function setTickData(uint256 tick, (uint256, uint256, uint256, bool) tick_data) external;
         function getCurrentTick() external view returns (uint256);
-        function setCurrentTick(uint256 tick) external;
+        function setCurrentTick(uint256 tick) external returns (uint256);
     }
 }
 
@@ -53,6 +60,8 @@ impl OrderManager {
     }
 
     pub fn insert_order(&mut self, tick: U256, volume: U256, user: Address, is_buy: bool) {
+        console!("ORDER :: insert order");
+
         let tick_manager_address = self.tick_manager_address.get();
         let tick_manager = ITickManager::new(tick_manager_address);
 
@@ -62,10 +71,19 @@ impl OrderManager {
         let order_index = start_index + length % U256::from(256);
 
         self.write_order(tick, order_index, user, volume);
-        tick_manager.update_tick(self, tick, volume, is_buy, false);
+        tick_manager.set_tick_data(self, tick, volume, is_buy, false);
+    
+        evm::log(InsertOrder {
+            user: user,
+            tick: tick,
+            is_buy: is_buy,
+            volume: volume,
+        });
     }
 
     pub fn update_order(&mut self, tick: U256, volume: U256, order_index: U256) {
+        console!("ORDER :: update order");
+
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
         let order_data = self.read_order(tick, order_index).unwrap();
 
@@ -75,7 +93,13 @@ impl OrderManager {
             self.write_order(tick, U256::from(order_index), order_data.0, volume);
         }
 
-        tick_manager.update_tick(self, tick, volume, false, true);
+        tick_manager.set_tick_data(self, tick, volume, false, true);
+
+        evm::log(UpdateOrder {
+            tick: tick,
+            order_index: order_index,
+            volume: volume,
+        });
     }
 
     pub fn read_order(&self, tick: U256, order_index: U256) -> Result<(Address, U256), Vec<u8>> {

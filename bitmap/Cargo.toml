@@ -9,8 +9,11 @@ keywords = ["arbitrum", "ethereum", "stylus", "alloy"]
 description = "Stylus hello world example"
 
 [dependencies]
-alloy-primitives = "=0.7.6"
-alloy-sol-types = "=0.7.6"
+alloy-primitives = { version = "=0.7.6", default-features = false }
+alloy-sol-types = { version = "=0.7.6", default-features = false }
+alloy-sol-macro = { version = "=0.7.6", default-features = false }
+alloy-sol-macro-expander = { version = "=0.7.6", default-features = false }
+alloy-sol-macro-input = { version = "=0.7.6", default-features = false }
 mini-alloc = "0.4.2"
 stylus-sdk = { version = "0.6.0", features = ["debug"] }
 hex = "0.4.3"

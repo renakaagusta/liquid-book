@@ -42,31 +42,68 @@ done
 # Define the RPC URL
 rpc_url="http://localhost:8547"
 
-# cast send "${addresses[engine]}" "initialize(address)" "${addresses[bitmap]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+echo "Initialize contracts"
 
 # Initialize engine
+# cast send "${addresses[engine]}" "initialize(address,address,address,address)" "${addresses[tick]}" "${addresses[order]}" "${addresses[bitmap]}" "${addresses[matcher]}" --rpc-url $rpc_url --private-key $private_key
 cast send "${addresses[engine]}" "initialize(address,address,address,address)" "${addresses[tick]}" "${addresses[order]}" "${addresses[bitmap]}" "${addresses[matcher]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
 
 # Initialize matcher
-cast send "${addresses[matcher]}" "initialize(address,address)" "${addresses[tick]}" "${addresses[order]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+# cast send "${addresses[matcher]}" "initialize(address,address)" "${addresses[bitmap]}" "${addresses[order]}" --rpc-url $rpc_url --private-key $private_key 
+cast send "${addresses[matcher]}" "initialize(address,address)" "${addresses[bitmap]}" "${addresses[order]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
 
 # Initialize tick
+# cast send "${addresses[tick]}" "initialize(address,address,address)" "${addresses[engine]}" "${addresses[bitmap]}" "${addresses[order]}" --rpc-url $rpc_url --private-key $private_key 
 cast send "${addresses[tick]}" "initialize(address,address,address)" "${addresses[engine]}" "${addresses[bitmap]}" "${addresses[order]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
 
 # Initialize order
-cast send "${addresses[order]}" "initialize(address,address,address)" "${addresses[engine]}" "${addresses[bitmap]}" "${addresses[tick]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1
+# cast send "${addresses[order]}" "initialize(address,address,address)" "${addresses[engine]}" "${addresses[bitmap]}" "${addresses[tick]}" --rpc-url $rpc_url --private-key $private_key 
+cast send "${addresses[order]}" "initialize(address,address,address)" "${addresses[engine]}" "${addresses[bitmap]}" "${addresses[tick]}" --rpc-url $rpc_url --private-key $private_key > /dev/null 2>&1 
+
+echo "Set initial tick"
+cast send --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "setCurrentTick(uint256)" 100 > /dev/null 2>&1
+# cast send --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "setCurrentTick(uint256)" 100  > /dev/null 2>&1
 
 echo "Place sell orders..."
 # Place sell orders (false = sell)
 for tick in {105..100}; do
-  cast send --rpc-url $rpc_url --private-key $private_key "${addresses[engine]}" "placeLimitOrder(uint256,uint256,bool)(uint256)" $tick 100 false > /dev/null 2>&1
+  # cast send --rpc-url $rpc_url --private-key $private_key "${addresses[engine]}" "placeOrder(uint256,uint256,address,bool,bool)" $tick 100 "0xf7ced2890a5428cc1f46252b0f04600234e8ab6e" false false
+  cast send --rpc-url $rpc_url --private-key $private_key "${addresses[engine]}" "placeOrder(uint256,uint256,address,bool,bool)" $tick 100 "0xf7ced2890a5428cc1f46252b0f04600234e8ab6e" false false  > /dev/null 2>&1
 done
 
 echo "Place buy orders..."
 # Place buy orders (true = buy)
 for tick in {99..95}; do
-  cast send --rpc-url $rpc_url --private-key $private_key "${addresses[engine]}" "placeLimitOrder(uint256,uint256,bool)(uint256)" $tick 100 true > /dev/null 2>&1
+  # cast send --rpc-url $rpc_url --private-key $private_key "${addresses[engine]}" "placeOrder(uint256,uint256,address,bool,bool)" $tick 100 "0xf7ced2890a5428cc1f46252b0f04600234e8ab6e" true false 
+  cast send --rpc-url $rpc_url --private-key $private_key "${addresses[engine]}" "placeOrder(uint256,uint256,address,bool,bool)" $tick 100 "0xf7ced2890a5428cc1f46252b0f04600234e8ab6e" true false > /dev/null 2>&1
 done
 
-echo "Set initial tick"
-cast send --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "setCurrentTick(uint256)" 100 > /dev/null 2>&1
+echo "Get top best ticks for seller"
+cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "topNBestTicks(bool)" false 
+
+echo "Get top best ticks for buyer"
+cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "topNBestTicks(bool)" true 
+
+echo "Get bitmap #1"
+cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "getBitmap(int16)" 0
+
+echo "Get tick #1" 
+cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "getCurrentTick()(uint256)" 
+
+echo "Place limit buy order to fill sell order at tick 101"
+cast send --rpc-url $rpc_url --private-key $private_key "${addresses[engine]}" "placeOrder(uint256,uint256,address,bool,bool)" 101 100 "0xf7ced2890a5428cc1f46252b0f04600234e8ab6e" true false > /dev/null 2>&1
+
+echo "Get bitmap #2"
+cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "getBitmap(int16)" 0 
+
+echo "Get tick #2"
+cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "getCurrentTick()(uint256)" 
+
+echo "Place limit sell order to fill buy order at tick 98 (The order book will use 100 to fill this order since it was the best buy tick)"
+cast send --rpc-url $rpc_url --private-key $private_key "${addresses[engine]}" "placeOrder(uint256,uint256,address,bool,bool)" 98 100 "0xf7ced2890a5428cc1f46252b0f04600234e8ab6e" false false > /dev/null 2>&1
+
+echo "Get bitmap #3"
+cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "getBitmap(int16)" 0 
+
+echo "Get tick #3"
+cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "getCurrentTick()(uint256)" 
