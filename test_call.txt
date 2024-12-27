@@ -1,0 +1,30 @@
+export RPC_URL="http://localhost:8547"
+export STYLUS_LOCAL_DEV_PK="0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659"
+
+export ENGINE_ADDRESS=0x677c7e0584b0202417762ce06e89dbc5935a7399
+export MATCHER_ADDRESS=0x514adac2d6baf50b1c349658848d76a9a6ff9484
+export BITMAP_ADDRESS=0x152c42eda481651b6053f7f59bf617046c960eab
+export TICK_ADDRESS=0x3bee4d202b6eb7fd4f0f7ab4ca0c3c81af619a6a
+export ORDER_ADDRESS=0x31a44b4f9184f921b9e6e2602520883f61edd9ad
+
+Engine:
+Sell:
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "matchMarketOrder(uint256,uint256,address,bool,bool)" 1 100 "0xf7ced2890a5428cc1f46252b0f04600234e8ab6e" false false 
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "topNBestTicks(bool)(uint256[])" false
+
+Buy:
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "matchMarketOrder(uint256,uint256,address,bool,bool)" 1 100 "0xf7ced2890a5428cc1f46252b0f04600234e8ab6e" true true
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $ENGINE_ADDRESS "topNBestTicks(bool)(uint256[])" true
+
+Tick:
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $TICK_MANAGER_ADDRESS "setCurrentTick(uint256)" 150
+
+Bitmap:
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $BITMAP_ADDRESS  "nextTick(int32,bool)(int32, bool)" 50 false --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK
+
+Bitmap:
+cast call --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $BITMAP_ADDRESS  "nextTick(int32,bool)(int32, bool)" 50 false --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK
+
+
+
+twiggy top /home/bobby/development/web3/order_book_project/liquid-book/engine/target/wasm32-unknown-unknown/release/liquid_book_engine.wasm

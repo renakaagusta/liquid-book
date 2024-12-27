@@ -1,0 +1,45 @@
+[package]
+name = "order-manager"
+version = "0.1.9"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+homepage = "https://github.com/OffchainLabs/order-manager"
+repository = "https://github.com/OffchainLabs/order-manager"
+keywords = ["arbitrum", "ethereum", "stylus", "alloy"]
+description = "Stylus hello world example"
+
+[dependencies]
+alloy-primitives = { version = "=0.7.6", default-features = false }
+alloy-sol-types = { version = "=0.7.6", default-features = false }
+alloy-sol-macro = { version = "=0.7.6", default-features = false }
+alloy-sol-macro-expander = { version = "=0.7.6", default-features = false }
+alloy-sol-macro-input = { version = "=0.7.6", default-features = false }
+mini-alloc = "0.4.2"
+# Debugging purpose
+stylus-sdk = { version = "0.6.0", features = ["hostio"] }
+
+[dev-dependencies]
+tokio = { version = "1.12.0", features = ["full"] }
+eyre = "0.6.8"
+
+[features]
+export-abi = ["stylus-sdk/export-abi"]
+debug = ["stylus-sdk/debug"]
+
+[[bin]]
+name = "order-manager"
+path = "src/main.rs"
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[profile.release]
+codegen-units = 1
+panic = "abort"
+opt-level = "z"
+strip = true
+lto = true
+debug = false
+rpath = false
+debug-assertions = false
+incremental = false
