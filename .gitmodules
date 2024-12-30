@@ -1,0 +1,3 @@
+[submodule "landing/lib/forge-std"]
+	path = landing/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
