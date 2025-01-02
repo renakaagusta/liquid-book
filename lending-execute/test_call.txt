@@ -1,9 +1,0 @@
-export RPC_URL="http://localhost:8547"
-export STYLUS_LOCAL_DEV_PK="0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659"
-
-cargo stylus deploy -e $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK --no-verify
-
-export LENDING_EXECUTE_ADDRESS=0x104f5cc5d1593f1ba2a0eecf5882be85e231aca9
-export LENDING_ADDRESS=0x104f5cc5d1593f1ba2a0eecf5882be85e231aca9
-
-cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $LENDING_ADDRESS "initialize(address)" 100

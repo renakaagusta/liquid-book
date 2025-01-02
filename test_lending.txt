@@ -1,0 +1,22 @@
+
+
+# Initialize the Lending contract
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $LENDING_EXECUTE_ADDRESS "initialize(address)" $LENDING_ADDRESS
+
+# Approve Mock USDC to Lending contract deposit
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $MOCK_USDC_ADDRESS "approve(address,uint256)" $LENDING_ADDRESS 1000
+
+# Deposit 1000 to the Lending contract via the LendingExecute contract
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $LENDING_EXECUTE_ADDRESS "deposit(uint256)" 1000
+
+# Withdraw 1000 from the Lending contract via the LendingExecute contract
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $LENDING_ADDRESS "withdraw(uint256)" 1000
+
+# Get the balance of the User in the Lending contract
+cast call --rpc-url $RPC_URL $LENDING_ADDRESS "balances(address)(uint256)" $USER_ADDRESS
+
+# Get the balance of the User
+cast call --rpc-url $RPC_URL $MOCK_USDC_ADDRESS "balanceOf(address)(uint256)" $USER_ADDRESS
+
+# Get Interest Rate
+cast call --rpc-url $RPC_URL $LENDING_ADDRESS "annualInterestRate()(uint256)"
