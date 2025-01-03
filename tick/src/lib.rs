@@ -58,7 +58,7 @@ impl TickManager {
     }
 
     pub fn set_tick_data(&mut self, tick: i128, volume: U256, is_buy: bool, is_existing_order: bool) {
-        let tick_data = self.ticks.get(tick.to_string().parse::<I128>().unwrap());
+        let tick_data = self.ticks.get(U128::from(tick));
         let mut updated_start_index = tick_data.start_index.get();
         let mut updated_length = tick_data.length.get();
         let mut updated_volume = tick_data.volume.get();
@@ -131,7 +131,7 @@ impl TickManager {
     }
 
     pub fn get_tick_data(&self, tick: i128) -> (U256, U256, U256, bool) {
-        let tick_data = self.ticks.get(tick.to_string().parse::<I128>().unwrap());
+        let tick_data = self.ticks.get(U128::from(tick));
         (
             U256::from(tick_data.start_index.get()),
             U256::from(tick_data.length.get()),

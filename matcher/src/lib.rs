@@ -5,6 +5,7 @@ extern crate alloc;
 use stylus_sdk::{
     alloy_primitives::{Address, U256},
     prelude::{entrypoint, public, sol_interface, sol_storage},
+    // console
 };
 
 sol_storage! {
