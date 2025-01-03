@@ -1,14 +1,13 @@
-#![cfg_attr(not(feature = "export-abi"), no_main)]
+#![cfg_attr(not(feature = "export-abi"), no_main, no_std)]
 extern crate alloc;
 
-// use alloc::vec::Vec;
+use alloc::vec::Vec;
 use alloy_primitives::Address;
 use alloy_sol_macro::sol;
 use stylus_sdk::{
     alloy_primitives::U256, 
     prelude::*, 
-    evm,
-    console
+    evm
 };
 
 use core::panic::PanicInfo;
@@ -19,7 +18,7 @@ fn panic(_info: &PanicInfo) -> ! {
 }
 
 sol! {
-    event PlaceOrder(address indexed user, uint256 indexed tick, bool indexed is_buy, uint256 volume);
+    event PlaceOrder(address indexed user, int128 indexed tick, uint256 order_index, bool is_buy, bool is_market, uint256 volume, uint256 remaining_volume);
 }
 
 sol_storage! {
@@ -34,23 +33,23 @@ sol_storage! {
 
 sol_interface! {
     interface ITickManager {
-        function getTickData(uint256 tick) external view returns (uint256, uint256, uint256, bool);
-        function setTickData(uint256 tick, (uint256, uint256, uint256, bool) tick_data) external;
+        function getTickData(int128 tick) external view returns (uint256, uint256, uint256, bool);
+        function setTickData(int128 tick, (uint256, uint256, uint256, bool) tick_data) external;
         function getCurrentTick() external view returns (uint256);
     }
 
     interface IOrderManager {
-        function insertOrder(uint256 tick, uint256 volume, address user, bool is_buy) external;
-        function readOrder(uint256 tick, uint256 order_index) external view returns (address, uint256);
-        function writeOrder(uint256 tick, uint256 order_index, address user, uint256 volume) external;
+        function insertOrder(int128 tick, uint256 volume, address user, bool is_buy) external returns(uint256);
+        function readOrder(int128 tick, uint256 order_index) external view returns (address, uint256);
+        function writeOrder(int128 tick, uint256 order_index, address user, uint256 volume) external;
     }
 
     interface IBitmapStorage {
-        function topNBestTicks(bool is_buy) external view returns (uint256[] memory);
+        function topNBestTicks(bool is_buy) external view returns (int128[] memory);
     }
 
     interface IMatcherManager {
-        function execute((uint256,uint256,uint256)[] valid_orders, uint256 incoming_order_volume, uint256 tick_value, uint256 tick_volume) external returns (uint256);
+        function execute((int128,uint256,uint256)[] valid_orders, uint256 incoming_order_volume, int128 tick_value, uint256 tick_volume) external returns (uint256);
     }
 }
 
@@ -66,12 +65,12 @@ impl LiquidBookEngine {
 
     pub fn place_order(
         &mut self,
-        incoming_order_tick: U256,
+        incoming_order_tick: i128,
         incoming_order_volume: U256,
         incoming_order_user: Address,
         incoming_order_is_buy: bool,
         incoming_order_is_market: bool
-    ) {
+    ) -> (U256, i128, U256) {
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
         let order_manager = IOrderManager::new(self.order_manager_address.get());
         let bitmap_manager = IBitmapStorage::new(self.bitmap_manager_address.get());
@@ -79,9 +78,9 @@ impl LiquidBookEngine {
 
         let mut remaining_incoming_order_volume: alloy_primitives::Uint<256, 4> =
             incoming_order_volume;
-        let possible_ticks: Vec<U256> = bitmap_manager.top_n_best_ticks(&*self, incoming_order_is_buy).unwrap();
+        let possible_ticks: Vec<i128> = bitmap_manager.top_n_best_ticks(&*self, incoming_order_is_buy).unwrap();
 
-        let filtered_possible_ticks: Vec<U256> = if incoming_order_is_market {
+        let filtered_possible_ticks: Vec<i128> = if incoming_order_is_market {
             possible_ticks
         } else if incoming_order_is_buy {
             possible_ticks
@@ -96,18 +95,17 @@ impl LiquidBookEngine {
                 .cloned()
                 .collect()
         };
+
+        let mut last_tick = incoming_order_tick;
+        let mut order_index = U256::from(256);
         
         if !filtered_possible_ticks.is_empty() {
-            let mut last_tick = U256::from(0);
-
             for tick in filtered_possible_ticks {
                 let (start_index, _, volume, _) = tick_manager.get_tick_data(&*self, tick).unwrap();
 
-                let mut orders: Vec<(U256, U256, U256)> = Vec::new();
+                let mut orders: Vec<(i128, U256, U256)> = Vec::new();
 
-                console!("ENGINE :: filtered possible ticks");
                 if volume != U256::ZERO {
-                    console!("ENGINE :: valid_orders: 1");
                     let mut index = start_index % U256::from(256);
 
                     loop {
@@ -121,7 +119,7 @@ impl LiquidBookEngine {
                             index = (index + U256::from(1)) % U256::from(256);
                         } else {
                             break;
-                        }
+                        }     
                     }
                 }
 
@@ -137,30 +135,34 @@ impl LiquidBookEngine {
             }
 
             if remaining_incoming_order_volume != U256::ZERO {
-                let _ = order_manager.insert_order(
+                order_index = order_manager.insert_order(
                     self,
                     last_tick,
                     U256::from(remaining_incoming_order_volume),
                     incoming_order_user,
                     incoming_order_is_buy,
-                );
+                ).unwrap();
             }
         } else {     
-            console!("ENGINE :: no filtered possible_ticks");
-            let _ = order_manager.insert_order(
+            order_index = order_manager.insert_order(
                 self,
                 incoming_order_tick,
                 U256::from(remaining_incoming_order_volume),
                 incoming_order_user,
                 incoming_order_is_buy,
-            );
+            ).unwrap();
         }
 
         evm::log(PlaceOrder {
             user: incoming_order_user,
-            tick: incoming_order_tick,
+            tick: last_tick,
             is_buy: incoming_order_is_buy,
+            order_index: order_index,
+            is_market: incoming_order_is_market,
             volume: incoming_order_volume,
+            remaining_volume: remaining_incoming_order_volume
         });
+
+        (remaining_incoming_order_volume, last_tick, order_index)
     }
 }
