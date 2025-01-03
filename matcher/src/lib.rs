@@ -2,11 +2,9 @@
 #![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
 
-use alloy_sol_macro::sol;
 use stylus_sdk::{
     alloy_primitives::{Address, U256},
     prelude::{entrypoint, public, sol_interface, sol_storage},
-    // console
 };
 
 sol_storage! {

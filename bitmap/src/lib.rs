@@ -5,7 +5,7 @@ extern crate alloc;
 use alloy_sol_macro::sol;
 use stylus_sdk::storage::{StorageMap, StorageU256, StorageI128};
 use stylus_sdk::{
-    alloy_primitives::{U256, I128, Signed},
+    alloy_primitives::{U256, I128},
     prelude::*,
     stylus_proc::entrypoint,
     evm,
