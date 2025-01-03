@@ -6,18 +6,18 @@
 // SPDX-License-Identifier: MIT-OR-APACHE-2.0
 pragma solidity ^0.8.23;
 
-interface BitmapManager {
-    event SetCurrentTick(uint256 indexed tick);
+contract BitmapManager {
+    event SetCurrentTick(int128 indexed tick);
     
     event FlipTick(int32 indexed tick);
 
     function position(int32 tick) external returns (int16, uint8);
 
-    function getCurrentTick() external view returns (uint256);
+    function getCurrentTick() external view returns (int128);
 
-    function setCurrentTick(uint256 tick) external returns (uint256);
+    function setCurrentTick(int128 tick) external returns (int128);
 
-    function topNBestTicks(bool is_buy) external view returns (uint256[] memory);
+    function topNBestTicks(bool is_buy) external view returns (int128[] memory);
 
     function flip(int32 tick) external returns (int16, uint8);
 

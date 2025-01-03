@@ -9,5 +9,5 @@ pragma solidity ^0.8.23;
 contract Matcher {
     function initialize(address bitmap_manager_address, address order_manager_address) external;
 
-    function execute((uint256,uint256,uint256)[] memory valid_orders, uint256 incoming_order_volume, uint256 tick_value, uint256 tick_volume) external returns (uint256);
+    function execute((int128,uint256,uint256)[] memory valid_orders, uint256 incoming_order_volume, int128 tick_value, uint256 tick_volume) external returns (uint256);
 }

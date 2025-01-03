@@ -3,9 +3,9 @@
 extern crate alloc;
 
 use alloy_sol_macro::sol;
-use stylus_sdk::storage::{StorageMap, StorageU256};
+use stylus_sdk::storage::{StorageMap, StorageU256, StorageI128};
 use stylus_sdk::{
-    alloy_primitives::{U256},
+    alloy_primitives::{U256, I128},
     prelude::*,
     stylus_proc::entrypoint,
     evm,
@@ -19,11 +19,11 @@ use maths::tick_bitmap::TickBitmap;
 #[entrypoint]
 pub struct BitmapManager {
     storage: StorageMap<i16, StorageU256>,
-    current_tick: StorageU256,
+    current_tick: StorageI128,
 }
 
 sol! {
-    event SetCurrentTick(uint256 indexed tick);
+    event SetCurrentTick(int128 indexed tick);
     event FlipTick(int32 indexed tick);
 }
 
@@ -40,14 +40,19 @@ impl BitmapManager {
         (word_pos, bit_pos)
     }
 
-    pub fn get_current_tick(&self) -> U256 {
+    pub fn get_current_tick(&self) -> i128 {
         console!("BITMAP :: current tick: {}", self.current_tick.get());
 
-        U256::from(self.current_tick.get())
+        self
+            .current_tick
+            .get()
+            .to_string()
+            .parse::<i128>()
+            .unwrap_or(0)
     }
 
-    pub fn set_current_tick(&mut self, tick: U256)  -> Result<U256, Vec<u8>> {
-        self.current_tick.set(U256::from(tick));
+    pub fn set_current_tick(&mut self, tick: i128) -> i128 {
+        self.current_tick.set(tick.to_string().parse::<I128>().unwrap());
         
         console!("BITMAP :: set current tick: {}", tick);
 
@@ -55,12 +60,12 @@ impl BitmapManager {
             tick: tick
         });
 
-        Ok(tick)
+        tick
     }
 
-    pub fn top_n_best_ticks(&self, is_buy: bool) -> Vec<U256> {
+    pub fn top_n_best_ticks(&self, is_buy: bool) -> Vec<i128> {
         let mut counter = U256::from(0);
-        let mut best_ticks: Vec<U256> = Vec::new();
+        let mut best_ticks: Vec<i128> = Vec::new();
         let mut current_tick = self
             .current_tick
             .get()
@@ -68,11 +73,13 @@ impl BitmapManager {
             .parse::<i32>()
             .unwrap_or(0);
 
+        console!("BITMAP :: current tick: {:?}", current_tick);
+
         loop {
             let (next_tick, initialized) = self.next_tick(current_tick, !is_buy);
 
             if initialized {
-                best_ticks.push(U256::from(next_tick));
+                best_ticks.push(i128::from(next_tick));
             }
 
             current_tick = if !is_buy { next_tick - 1 } else { next_tick };

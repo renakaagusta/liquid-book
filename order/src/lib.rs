@@ -1,19 +1,26 @@
 // Allow `cargo stylus export-abi` to generate a main function.
-#![cfg_attr(not(feature = "export-abi"), no_main)]
+#![cfg_attr(not(feature = "export-abi"), no_main, no_std)]
 extern crate alloc;
 
+use alloc::vec::Vec;
 use alloy_sol_macro::sol;
 use stylus_sdk::{
     alloy_primitives::{keccak256, Address, U256},
     hostio::{storage_cache_bytes32, storage_flush_cache, storage_load_bytes32},
     prelude::*,
     evm,
-    console
 };
 
+// use core::panic::PanicInfo;
+
+// #[panic_handler]
+// fn panic(_info: &PanicInfo) -> ! {
+//     loop {}
+// }
+
 sol! {
-    event InsertOrder(address indexed user, uint256 indexed tick, bool indexed is_buy, uint256 volume);
-    event UpdateOrder(uint256 indexed tick, uint256 indexed order_index, uint256 volume);
+    event InsertOrder(address indexed user, int128 indexed tick, uint256 indexed order_index, bool is_buy, uint256 volume);
+    event UpdateOrder(int128 indexed tick, uint256 indexed order_index, uint256 volume);
 }
 
 sol_storage! {
@@ -39,10 +46,10 @@ sol_storage! {
 
 sol_interface! {
     interface ITickManager {
-        function setTickData(uint256 tick, uint256 volume, bool is_buy, bool is_existing_order) external;
-        function getTickData(uint256 tick) external view returns (uint256, uint256, uint256, bool);
+        function setTickData(int128 tick, uint256 volume, bool is_buy, bool is_existing_order) external;
+        function getTickData(int128 tick) external view returns (uint256, uint256, uint256, bool);
         function getCurrentTick() external view returns (uint256);
-        function setCurrentTick(uint256 tick) external returns (uint256);
+        function setCurrentTick(int128 tick) external returns (uint256);
     }
 }
 
@@ -59,9 +66,7 @@ impl OrderManager {
         self.tick_manager_address.set(tick_manager_address);
     }
 
-    pub fn insert_order(&mut self, tick: U256, volume: U256, user: Address, is_buy: bool) {
-        console!("ORDER :: insert order");
-
+    pub fn insert_order(&mut self, tick: i128, volume: U256, user: Address, is_buy: bool) -> U256 {
         let tick_manager_address = self.tick_manager_address.get();
         let tick_manager = ITickManager::new(tick_manager_address);
 
@@ -76,14 +81,15 @@ impl OrderManager {
         evm::log(InsertOrder {
             user: user,
             tick: tick,
+            order_index: order_index,
             is_buy: is_buy,
             volume: volume,
         });
+
+        order_index
     }
 
-    pub fn update_order(&mut self, tick: U256, volume: U256, order_index: U256) {
-        console!("ORDER :: update order");
-
+    pub fn update_order(&mut self, tick: i128, volume: U256, order_index: U256) {
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
         let order_data = self.read_order(tick, order_index).unwrap();
 
@@ -102,7 +108,7 @@ impl OrderManager {
         });
     }
 
-    pub fn read_order(&self, tick: U256, order_index: U256) -> Result<(Address, U256), Vec<u8>> {
+    pub fn read_order(&self, tick: i128, order_index: U256) -> Result<(Address, U256), Vec<u8>> {
         let encoded_order_key = self.encode_order_key(tick, order_index).unwrap();
         let hashed_encoded_order_key = keccak256(encoded_order_key);
 
@@ -121,7 +127,7 @@ impl OrderManager {
         Ok(decoded_order_data.unwrap())
     }
 
-    pub fn write_order(&mut self, tick: U256, order_index: U256, user: Address, volume: U256) {
+    pub fn write_order(&mut self, tick: i128, order_index: U256, user: Address, volume: U256) {
         let encoded_order_key = self.encode_order_key(tick, order_index).unwrap();
         let encoded_order_data = self.encode_order_data(user, volume).unwrap();
 
@@ -136,7 +142,7 @@ impl OrderManager {
         }
     }
 
-    pub fn delete_order(&mut self, tick: U256, order_index: U256) {
+    pub fn delete_order(&mut self, tick: i128, order_index: U256) {
         let encoded_order_key = self.encode_order_key(tick, order_index).unwrap();
         let hashed_encoded_order_key = keccak256(encoded_order_key);
 
@@ -146,11 +152,12 @@ impl OrderManager {
         }
     }
 
-    pub fn encode_order_key(&self, tick: U256, order_index: U256) -> Result<Vec<u8>, Vec<u8>> {
+    pub fn encode_order_key(&self, tick: i128, order_index: U256) -> Result<Vec<u8>, Vec<u8>> {
         let mut encoded = Vec::new();
-        encoded.extend_from_slice(&tick.to_be_bytes::<32>());
+        encoded.extend_from_slice(&tick.to_be_bytes());
         encoded.extend_from_slice(b"-");
         encoded.extend_from_slice(&order_index.to_be_bytes::<32>());
+
         Ok(encoded)
     }
 
@@ -158,6 +165,7 @@ impl OrderManager {
         let mut encoded = [0u8; 32];
         encoded[..20].copy_from_slice(&<[u8; 20]>::from(user));
         encoded[20..32].copy_from_slice(&volume.to_be_bytes::<32>()[20..32]);
+
         Ok(encoded)
     }
 

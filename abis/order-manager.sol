@@ -7,23 +7,23 @@
 pragma solidity ^0.8.23;
 
 contract OrderManager {
-    event InsertOrder(address indexed user, uint256 indexed tick, bool indexed is_buy, uint256 volume);
+    event InsertOrder(address indexed user, int128 indexed tick, uint256 indexed order_index, bool is_buy, uint256 volume);
     
-    event UpdateOrder(uint256 indexed tick, uint256 indexed order_index, uint256 volume);
+    event UpdateOrder(int128 indexed tick, uint256 indexed order_index, uint256 volume);
 
     function initialize(address engine_address, address bitmap_manager_address, address tick_manager_address) external;
 
-    function insertOrder(uint256 tick, uint256 volume, address user, bool is_buy) external;
+    function insertOrder(int128 tick, uint256 volume, address user, bool is_buy) external returns (uint256);
 
-    function updateOrder(uint256 tick, uint256 volume, uint256 order_index) external;
+    function updateOrder(int128 tick, uint256 volume, uint256 order_index) external;
 
-    function readOrder(uint256 tick, uint256 order_index) external view returns (address, uint256);
+    function readOrder(int128 tick, uint256 order_index) external view returns (address, uint256);
 
-    function writeOrder(uint256 tick, uint256 order_index, address user, uint256 volume) external;
+    function writeOrder(int128 tick, uint256 order_index, address user, uint256 volume) external;
 
-    function deleteOrder(uint256 tick, uint256 order_index) external;
+    function deleteOrder(int128 tick, uint256 order_index) external;
 
-    function encodeOrderKey(uint256 tick, uint256 order_index) external view returns (uint8[] memory);
+    function encodeOrderKey(int128 tick, uint256 order_index) external view returns (uint8[] memory);
 
     function encodeOrderData(address user, uint256 volume) external view returns (uint8[32] memory);
 
