@@ -4,12 +4,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 use alloy_primitives::Address;
 use alloy_sol_macro::sol;
-use stylus_sdk::{
-    alloy_primitives::U256, 
-    prelude::*, 
-    evm,
-    console
-};
+use stylus_sdk::{alloy_primitives::U256, console, evm, prelude::*};
 
 // use core::panic::PanicInfo;
 
@@ -47,7 +42,7 @@ sol_interface! {
     interface IBitmapManager {
         function topNBestTicks(bool is_buy) external view returns (int128[] memory);
         function getCurrentTick() external view returns (int128);
-        function setCurrentTick(int128 tick) external returns (int128); 
+        function setCurrentTick(int128 tick) external returns (int128);
     }
 
     interface IMatcherManager {
@@ -58,7 +53,13 @@ sol_interface! {
 #[public]
 
 impl LiquidBookEngine {
-    pub fn initialize(&mut self, tick_manager_address: Address, order_manager_address: Address, bitmap_manager_address: Address, matcher_manager_address: Address) {
+    pub fn initialize(
+        &mut self,
+        tick_manager_address: Address,
+        order_manager_address: Address,
+        bitmap_manager_address: Address,
+        matcher_manager_address: Address,
+    ) {
         self.tick_manager_address.set(tick_manager_address);
         self.order_manager_address.set(order_manager_address);
         self.bitmap_manager_address.set(bitmap_manager_address);
@@ -71,7 +72,7 @@ impl LiquidBookEngine {
         incoming_order_volume: U256,
         incoming_order_user: Address,
         incoming_order_is_buy: bool,
-        incoming_order_is_market: bool
+        incoming_order_is_market: bool,
     ) -> (U256, i128, U256) {
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
         let order_manager = IOrderManager::new(self.order_manager_address.get());
@@ -80,7 +81,9 @@ impl LiquidBookEngine {
 
         let mut remaining_incoming_order_volume: alloy_primitives::Uint<256, 4> =
             incoming_order_volume;
-        let possible_ticks: Vec<i128> = bitmap_manager.top_n_best_ticks(&*self, incoming_order_is_buy).unwrap();
+        let possible_ticks: Vec<i128> = bitmap_manager
+            .top_n_best_ticks(&*self, incoming_order_is_buy)
+            .unwrap();
         let current_tick: i128 = bitmap_manager.get_current_tick(&*self).unwrap();
 
         let filtered_possible_ticks: Vec<i128> = if incoming_order_is_market {
@@ -101,13 +104,14 @@ impl LiquidBookEngine {
 
         let mut last_tick = incoming_order_tick;
         let mut order_index = U256::from(256);
-        
+
         if !filtered_possible_ticks.is_empty() {
             for tick in filtered_possible_ticks {
-                let (start_index, _, volume, _) = tick_manager.get_tick_data(&*self, tick).unwrap();
+                let (start_index, _, volume, order_user) =
+                    tick_manager.get_tick_data(&*self, tick).unwrap();
 
                 if volume != U256::ZERO {
-                    let mut orders: Vec<(i128, U256, U256)> = Vec::new();
+                    let mut orders: Vec<(i128, U256, U256, Address)> = Vec::new();
 
                     let mut index = start_index % U256::from(256);
 
@@ -115,18 +119,29 @@ impl LiquidBookEngine {
                         let order = order_manager
                             .read_order(&*self, tick, U256::from(index))
                             .unwrap();
-                        let (_, order_volume) = order;
+                        let (order_user, order_volume) = order;
 
                         if order_volume != U256::ZERO {
-                            orders.push((tick, U256::from(index), order_volume));
+                            orders.push((tick, U256::from(index), order_volume, order_user));
                             index = (index + U256::from(1)) % U256::from(256);
                         } else {
                             break;
-                        }     
+                        }
                     }
 
                     if !orders.is_empty() {
-                        remaining_incoming_order_volume = matcher.execute(&mut *self, incoming_order_user, incoming_order_is_buy, incoming_order_is_market, orders, remaining_incoming_order_volume, tick, volume).unwrap();
+                        remaining_incoming_order_volume = matcher
+                            .execute(
+                                &mut *self,
+                                incoming_order_user,
+                                incoming_order_is_buy,
+                                incoming_order_is_market,
+                                orders,
+                                remaining_incoming_order_volume,
+                                tick,
+                                volume,
+                            )
+                            .unwrap();
                     }
 
                     if remaining_incoming_order_volume == U256::ZERO {
@@ -136,18 +151,22 @@ impl LiquidBookEngine {
                     last_tick = tick;
                 }
             }
-        } 
+        }
 
         if remaining_incoming_order_volume != U256::ZERO {
-            order_index = order_manager.insert_order(
-                &mut *self,
-                last_tick,
-                U256::from(remaining_incoming_order_volume),
-                incoming_order_user,
-                incoming_order_is_buy,
-            ).unwrap();
+            order_index = order_manager
+                .insert_order(
+                    &mut *self,
+                    last_tick,
+                    U256::from(remaining_incoming_order_volume),
+                    incoming_order_user,
+                    incoming_order_is_buy,
+                )
+                .unwrap();
 
-            if last_tick > current_tick && incoming_order_is_buy == true || last_tick < current_tick && incoming_order_is_buy == false {
+            if last_tick > current_tick && incoming_order_is_buy == true
+                || last_tick < current_tick && incoming_order_is_buy == false
+            {
                 bitmap_manager.set_current_tick(&mut *self, last_tick);
             }
         }
@@ -159,7 +178,7 @@ impl LiquidBookEngine {
             order_index: order_index,
             is_market: incoming_order_is_market,
             volume: incoming_order_volume,
-            remaining_volume: remaining_incoming_order_volume
+            remaining_volume: remaining_incoming_order_volume,
         });
 
         (remaining_incoming_order_volume, last_tick, order_index)

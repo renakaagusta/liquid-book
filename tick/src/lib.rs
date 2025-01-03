@@ -5,10 +5,9 @@ extern crate alloc;
 use crate::alloc::string::ToString;
 use alloy_sol_macro::sol;
 use stylus_sdk::{
-    alloy_primitives::{Address, U128, I128, U256},
+    alloy_primitives::{Address, I128, U128, U256},
+    console, evm, evm,
     prelude::{entrypoint, public, sol_interface, sol_storage},
-    evm,
-    console
 };
 
 sol! {
@@ -26,13 +25,15 @@ sol_storage! {
 
     pub struct Order {
         address user;
-        uint128 volume;
+        uint128 volume_in;
+        uint128 volume_out;
     }
 
     pub struct Tick {
         uint128 start_index;
         uint128 length;
-        uint128 volume;
+        uint128 volume_in;
+        uint128 volume_out;
         bool is_buy;
     }
 }
@@ -58,13 +59,18 @@ impl TickManager {
         self.order_manager_address.set(order_manager_address);
     }
 
-    pub fn set_tick_data(&mut self, tick: i128, volume: U256, is_buy: bool, is_existing_order: bool) {
-        // console!("TICK :: set tick value :: {}, volume: {}", tick, volume);
-
+    pub fn set_tick_data(
+        &mut self,
+        tick: i128,
+        volume: U256,
+        is_buy: bool,
+        is_existing_order: bool,
+    ) {
         let tick_data = self.ticks.get(tick.to_string().parse::<I128>().unwrap());
         let mut updated_start_index = tick_data.start_index.get();
         let mut updated_length = tick_data.length.get();
-        let mut updated_volume = tick_data.volume.get();
+        let mut updated_volume_in = tick_data.volume_in.get();
+        let mut updated_volume_out = tick_data.volume_out.get();
         let mut updated_is_buy = tick_data.is_buy.get();
         let initial_volume = tick_data.volume.get();
 
@@ -82,7 +88,6 @@ impl TickManager {
                     .is_buy
                     .set(updated_is_buy);
 
-
                 if volume == U256::ZERO {
                     updated_length -= U128::from(1) % U128::from(256);
 
@@ -95,7 +100,9 @@ impl TickManager {
 
             updated_volume = U128::from(volume);
         } else {
-            if tick_data.volume.get() == U128::ZERO || (tick_data.is_buy.get() != is_buy && U128::from(volume) > tick_data.volume.get()) {
+            if tick_data.volume.get() == U128::ZERO
+                || (tick_data.is_buy.get() != is_buy && U128::from(volume) > tick_data.volume.get())
+            {
                 updated_volume = U128::from(volume) - tick_data.volume.get();
                 updated_is_buy = !tick_data.is_buy.get();
 
@@ -126,18 +133,19 @@ impl TickManager {
 
         if initial_volume == U128::ZERO && updated_volume != U128::ZERO
             || initial_volume != U128::ZERO && updated_volume == U128::ZERO
-        {            
+        {
             let converted_tick: i32 = tick.try_into().unwrap();
             let bitmap_manager = IBitmapStorage::new(self.bitmap_manager_address.get());
 
             bitmap_manager.flip(self, converted_tick);
         }
-        
+
         evm::log(SetTickData {
             tick: tick,
             is_buy: updated_is_buy,
-            volume: U256::from(updated_volume),
-            is_existing_order: is_existing_order
+            volume_in: U256::from(updated_volume_in),
+            volume_out: U256::from(updated_volume_out),
+            is_existing_order: is_existing_order,
         });
     }
 
@@ -147,7 +155,8 @@ impl TickManager {
         (
             U256::from(tick_data.start_index.get()),
             U256::from(tick_data.length.get()),
-            U256::from(tick_data.volume.get()),
+            U256::from(tick_data.volume_in.get()),
+            U256::from(tick_data.volume_out.get()),
             tick_data.is_buy.get(),
         )
     }
