@@ -37,6 +37,7 @@ echo "All deployed addresses:"
 for module in "${!addresses[@]}"; do
   snake_case_module=$(echo "$module" | sed -r 's/([a-z])([A-Z])/\1_\2/g; s/-/_/g' | tr '[:lower:]' '[:upper:]')
   echo "export "${snake_case_module}_ADDRESS=${addresses[$module]}""
+  echo "${snake_case_module}_ADDRESS=${addresses[$module]}" >> .env.example
 done
 
 # Define the RPC URL

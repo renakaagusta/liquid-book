@@ -6,10 +6,9 @@ use alloc::vec::Vec;
 use alloy_sol_macro::sol;
 use stylus_sdk::{
     alloy_primitives::{keccak256, Address, U256},
+    console, evm,
     hostio::{storage_cache_bytes32, storage_flush_cache, storage_load_bytes32},
     prelude::*,
-    evm,
-    console
 };
 
 use core::panic::PanicInfo;
@@ -34,13 +33,15 @@ sol_storage! {
 
     pub struct Order {
         address user;
-        uint128 volume;
+        uint128 volume_in;
+        uint128 volume_out;
     }
 
     pub struct Tick {
         uint128 start_index;
         uint128 length;
-        uint128 volume;
+        uint128 volume_in;
+        uint128 volume_out;
         bool is_buy;
     }
 }

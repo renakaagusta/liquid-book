@@ -94,15 +94,20 @@ impl MatcherManager {
         for (order_tick, order_index, order_volume, order_user) in valid_orders {
             let mut remaining_order_volume = order_volume;
 
-            if remaining_order_volume < remaining_incoming_order_volume {
-                remaining_incoming_order_volume -= order_volume;
-                remaining_order_volume = U256::ZERO;
-            } else if remaining_order_volume == remaining_incoming_order_volume {
-                remaining_order_volume = U256::ZERO;
-                remaining_incoming_order_volume = U256::ZERO;
+            if remaining_order_volume_in < remaining_incoming_order_volume_in {
+                remaining_incoming_order_volume_in -= order_volume_in;
+                remaining_incoming_order_volume_out -= order_volume_out;
+                remaining_order_volume_in = U256::ZERO;
+                remaining_order_volume_out = U256::ZERO;
+            } else if remaining_order_volume_in == remaining_incoming_order_volume_in {
+                remaining_order_volume_in = U256::ZERO;
+                remaining_order_volume_out = U256::ZERO;
+                remaining_incoming_order_volume_in = U256::ZERO;
+                remaining_incoming_order_volume_out = U256::ZERO;
             } else {
-                remaining_order_volume -= remaining_incoming_order_volume;
-                remaining_incoming_order_volume = U256::ZERO;
+                remaining_order_volume_in -= remaining_incoming_order_volume_in;
+                remaining_incoming_order_volume_in = U256::ZERO;
+                remaining_incoming_order_volume_out = U256::ZERO;
             }
 
             remaining_tick_volume -= order_volume - remaining_order_volume;
@@ -124,7 +129,7 @@ impl MatcherManager {
 
             console!("MATCHER :: result: {:?}", result);
 
-            if remaining_incoming_order_volume == U256::ZERO {
+            if remaining_incoming_order_volume_in == U256::ZERO {
                 break;
             }
         }

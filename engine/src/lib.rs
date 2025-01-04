@@ -107,7 +107,7 @@ impl LiquidBookEngine {
 
         if !filtered_possible_ticks.is_empty() {
             for tick in filtered_possible_ticks {
-                let (start_index, _, volume, order_user) =
+                let (start_index, _, volume_in, volume_out, order_user) =
                     tick_manager.get_tick_data(&*self, tick).unwrap();
 
                 if volume != U256::ZERO {
@@ -121,8 +121,14 @@ impl LiquidBookEngine {
                             .unwrap();
                         let (order_user, order_volume) = order;
 
-                        if order_volume != U256::ZERO {
-                            orders.push((tick, U256::from(index), order_volume, order_user));
+                        if order_volume_in != U256::ZERO {
+                            orders.push((
+                                tick,
+                                U256::from(index),
+                                order_volume_in,
+                                order_volume_out,
+                                order_user,
+                            ));
                             index = (index + U256::from(1)) % U256::from(256);
                         } else {
                             break;
