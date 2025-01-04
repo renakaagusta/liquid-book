@@ -8,15 +8,15 @@ use stylus_sdk::{
     alloy_primitives::{keccak256, Address, U256},
     hostio::{storage_cache_bytes32, storage_flush_cache, storage_load_bytes32},
     prelude::*,
-    evm,
+    evm
 };
 
-// use core::panic::PanicInfo;
+use core::panic::PanicInfo;
 
-// #[panic_handler]
-// fn panic(_info: &PanicInfo) -> ! {
-//     loop {}
-// }
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    loop {}
+}
 
 sol! {
     event InsertOrder(address indexed user, int128 indexed tick, uint256 indexed order_index, bool is_buy, uint256 volume);
@@ -87,6 +87,7 @@ impl OrderManager {
         });
 
         order_index
+        // U256::from(0)
     }
 
     pub fn update_order(&mut self, tick: i128, volume: U256, order_index: U256) {
