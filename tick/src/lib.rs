@@ -4,7 +4,7 @@ extern crate alloc;
 
 use alloy_sol_macro::sol;
 use stylus_sdk::{
-    alloy_primitives::{Address, U128, U256},
+    alloy_primitives::{Address, U128, I128, U256},
     prelude::{entrypoint, public, sol_interface, sol_storage},
     evm
 };
@@ -20,7 +20,7 @@ sol_storage! {
         address order_manager_address;
         address bitmap_manager_address;
         uint128 current_tick;
-        mapping(uint128 => Tick) ticks;
+        mapping(int128 => Tick) ticks;
     }
 
     pub struct Order {
@@ -58,7 +58,7 @@ impl TickManager {
     }
 
     pub fn set_tick_data(&mut self, tick: i128, volume: U256, is_buy: bool, is_existing_order: bool) {
-        let tick_data = self.ticks.get(U128::from(tick));
+        let tick_data = self.ticks.get(tick.to_string().parse::<I128>().unwrap());
         let mut updated_start_index = tick_data.start_index.get();
         let mut updated_length = tick_data.length.get();
         let mut updated_volume = tick_data.volume.get();
@@ -73,7 +73,7 @@ impl TickManager {
                 updated_start_index += U128::from(1) % U128::from(256);
 
                 self.ticks
-                    .setter(U128::from(tick))
+                    .setter(tick.to_string().parse::<I128>().unwrap())
                     .start_index
                     .set(updated_start_index);
             }
@@ -83,7 +83,7 @@ impl TickManager {
                 updated_is_buy = !tick_data.is_buy.get();
 
                 self.ticks
-                    .setter(U128::from(tick))
+                    .setter(tick.to_string().parse::<I128>().unwrap())
                     .is_buy
                     .set(updated_is_buy);
             } else if tick_data.is_buy.get() != is_buy {
@@ -95,13 +95,13 @@ impl TickManager {
             updated_length += U128::from(1) % U128::from(256);
 
             self.ticks
-                .setter(U128::from(tick))
+                .setter(tick.to_string().parse::<I128>().unwrap())
                 .length
                 .set(updated_length);
         }
 
         self.ticks
-            .setter(U128::from(tick))
+            .setter(tick.to_string().parse::<I128>().unwrap())
             .volume
             .set(updated_volume);
 
@@ -131,7 +131,7 @@ impl TickManager {
     }
 
     pub fn get_tick_data(&self, tick: i128) -> (U256, U256, U256, bool) {
-        let tick_data = self.ticks.get(U128::from(tick));
+        let tick_data = self.ticks.get(tick.to_string().parse::<I128>().unwrap());
         (
             U256::from(tick_data.start_index.get()),
             U256::from(tick_data.length.get()),
