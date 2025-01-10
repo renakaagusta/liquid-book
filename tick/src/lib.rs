@@ -1,7 +1,8 @@
 // Allow `cargo stylus export-abi` to generate a main function.
-#![cfg_attr(not(feature = "export-abi"), no_main)]
+#![cfg_attr(not(feature = "export-abi"), no_main, no_std)]
 extern crate alloc;
 
+use crate::alloc::string::ToString;
 use alloy_sol_macro::sol;
 use stylus_sdk::{
     alloy_primitives::{Address, U128, I128, U256},
@@ -58,7 +59,7 @@ impl TickManager {
     }
 
     pub fn set_tick_data(&mut self, tick: i128, volume: U256, is_buy: bool, is_existing_order: bool) {
-        let tick_data = self.ticks.get(U128::from(tick));
+        let tick_data = self.ticks.get(tick.to_string().parse::<I128>().unwrap());
         let mut updated_start_index = tick_data.start_index.get();
         let mut updated_length = tick_data.length.get();
         let mut updated_volume = tick_data.volume.get();
@@ -131,7 +132,7 @@ impl TickManager {
     }
 
     pub fn get_tick_data(&self, tick: i128) -> (U256, U256, U256, bool) {
-        let tick_data = self.ticks.get(U128::from(tick));
+        let tick_data = self.ticks.get(tick.to_string().parse::<I128>().unwrap());
         (
             U256::from(tick_data.start_index.get()),
             U256::from(tick_data.length.get()),

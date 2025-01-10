@@ -2,30 +2,10 @@
     {
         "anonymous": false,
         "inputs": [
-            {
-                "indexed": true,
-                "internalType": "int128",
-                "name": "tick",
-                "type": "int128"
-            },
-            {
-                "indexed": true,
-                "internalType": "bool",
-                "name": "is_buy",
-                "type": "bool"
-            },
-            {
-                "indexed": true,
-                "internalType": "uint256",
-                "name": "volume",
-                "type": "uint256"
-            },
-            {
-                "indexed": false,
-                "internalType": "bool",
-                "name": "is_existing_order",
-                "type": "bool"
-            }
+            { "indexed": true, "internalType": "uint256", "name": "tick", "type": "uint256" },
+            { "indexed": true, "internalType": "bool", "name": "is_buy", "type": "bool" },
+            { "indexed": true, "internalType": "uint256", "name": "volume", "type": "uint256" },
+            { "indexed": false, "internalType": "bool", "name": "is_existing_order", "type": "bool" }
         ],
         "name": "SetTickData",
         "type": "event"

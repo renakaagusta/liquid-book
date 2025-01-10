@@ -5,8 +5,12 @@ extern crate alloc;
 use stylus_sdk::{
     alloy_primitives::{Address, U256},
     prelude::{entrypoint, public, sol_interface, sol_storage},
-    // console
+    evm
 };
+
+sol! {
+    event MatchOrder(address indexed user, int128 indexed tick, uint256 order_index, bool is_buy, bool is_market, uint256 volume);
+}
 
 sol_storage! {
     #[entrypoint]
@@ -36,13 +40,14 @@ impl MatcherManager {
 
     fn execute(
         &mut self,
+        user: Address,
+        is_buy: bool,
+        is_market: bool,
         valid_orders: Vec<(i128, U256, U256)>,
         incoming_order_volume: U256,
         tick_value: i128,
         tick_volume: U256
     ) -> U256 {
-        // console!("MATCHER :: remaining incoming order volume:");
-
         let mut remaining_incoming_order_volume = incoming_order_volume;
         let bitmap_manager = IBitmapManager::new(self.bitmap_manager_address.get());
         let order_manager = IOrderManager::new(self.order_manager_address.get());
@@ -61,6 +66,15 @@ impl MatcherManager {
                 remaining_incoming_order_volume = U256::ZERO;
             }
 
+            evm::log(MatchOrder {
+                user: user,
+                tick: order_tick,
+                is_buy: is_buy,
+                order_index: order_index,
+                is_market: is_market,
+                volume: order_volume - remaining_order_volume
+            });
+
             let result = bitmap_manager.set_current_tick(&mut *self, order_tick);
             let _ = order_manager.update_order(
                 &mut *self,
@@ -78,8 +92,6 @@ impl MatcherManager {
             let converted_tick: i32 = tick_value.try_into().unwrap();
             bitmap_manager.flip(&mut *self, converted_tick);
         }
-
-        // console!("MATCHER :: remaining incoming order volume: {}", remaining_incoming_order_volume);
 
         remaining_incoming_order_volume
     }

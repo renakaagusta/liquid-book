@@ -8,8 +8,7 @@ use stylus_sdk::{
     alloy_primitives::{keccak256, Address, U256},
     hostio::{storage_cache_bytes32, storage_flush_cache, storage_load_bytes32},
     prelude::*,
-    evm,
-    // console
+    evm
 };
 
 use core::panic::PanicInfo;

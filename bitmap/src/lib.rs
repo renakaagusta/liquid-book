@@ -2,14 +2,16 @@
 #![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
 
+use core::ops::ShrAssign;
+use crate::alloc::string::ToString;
 use alloy_sol_macro::sol;
 use stylus_sdk::storage::{StorageMap, StorageU256, StorageI128};
 use stylus_sdk::{
-    alloy_primitives::{U256, I128, Signed},
+    alloy_primitives::{U256, I128},
     prelude::*,
     stylus_proc::entrypoint,
     evm,
-    console,
+    console
 };
 
 pub mod maths;
@@ -54,13 +56,17 @@ impl BitmapManager {
     pub fn set_current_tick(&mut self, tick: i128) -> i128 {
         self.current_tick.set(tick.to_string().parse::<I128>().unwrap());
         
-        console!("BITMAP :: set current tick: {}", tick);
+        // console!("BITMAP :: set current tick: {}", tick);
 
         evm::log(SetCurrentTick {
             tick: tick
         });
 
         tick
+    }
+
+    pub fn log(self, value: i32) {
+        console!("BITMAP :: log :: value: {}", value);
     }
 
     pub fn top_n_best_ticks(&self, is_buy: bool) -> Vec<i128> {
@@ -73,7 +79,7 @@ impl BitmapManager {
             .parse::<i32>()
             .unwrap_or(0);
 
-        console!("BITMAP :: current tick: {:?}", current_tick);
+        // console!("BITMAP :: current tick: {:?}", current_tick);
 
         loop {
             let (next_tick, initialized) = self.next_tick(current_tick, !is_buy);
@@ -90,12 +96,14 @@ impl BitmapManager {
             }
         }
 
-        console!("BITMAP :: best ticks: {:?}", best_ticks);
+        console!("BITMAP :: best ticks: {:?} {:?}", is_buy, best_ticks);
 
         best_ticks
     }
 
     pub fn flip(&mut self, tick: i32) -> (i16, u8) {
+        console!("BITMAP :: flip: {}", tick);
+
         TickBitmap::flip_tick(&mut self.storage, tick, 1);
 
         evm::log(FlipTick {

@@ -49,7 +49,7 @@ sol_interface! {
     }
 
     interface IMatcherManager {
-        function execute((int128,uint256,uint256)[] valid_orders, uint256 incoming_order_volume, int128 tick_value, uint256 tick_volume) external returns (uint256);
+        function execute(address user, bool is_buy, bool is_market, (int128,uint256,uint256)[] valid_orders, uint256 incoming_order_volume, int128 tick_value, uint256 tick_volume) external returns (uint256);
     }
 }
 
@@ -103,9 +103,9 @@ impl LiquidBookEngine {
             for tick in filtered_possible_ticks {
                 let (start_index, _, volume, _) = tick_manager.get_tick_data(&*self, tick).unwrap();
 
-                let mut orders: Vec<(i128, U256, U256)> = Vec::new();
-
                 if volume != U256::ZERO {
+                    let mut orders: Vec<(i128, U256, U256)> = Vec::new();
+
                     let mut index = start_index % U256::from(256);
 
                     loop {
@@ -121,32 +121,24 @@ impl LiquidBookEngine {
                             break;
                         }     
                     }
-                }
 
-                if !orders.is_empty() {
-                    remaining_incoming_order_volume = matcher.execute(&mut *self, orders, remaining_incoming_order_volume, tick, volume).unwrap();
-                }
+                    if !orders.is_empty() {
+                        remaining_incoming_order_volume = matcher.execute(&mut *self, incoming_order_user, incoming_order_is_buy, incoming_order_is_market, orders, remaining_incoming_order_volume, tick, volume).unwrap();
+                    }
 
-                if remaining_incoming_order_volume == U256::ZERO {
-                    break;
-                }
+                    if remaining_incoming_order_volume == U256::ZERO {
+                        break;
+                    }
 
-                last_tick = tick;
+                    last_tick = tick;
+                }
             }
+        } 
 
-            if remaining_incoming_order_volume != U256::ZERO {
-                order_index = order_manager.insert_order(
-                    self,
-                    last_tick,
-                    U256::from(remaining_incoming_order_volume),
-                    incoming_order_user,
-                    incoming_order_is_buy,
-                ).unwrap();
-            }
-        } else {     
+        if remaining_incoming_order_volume != U256::ZERO {
             order_index = order_manager.insert_order(
                 self,
-                incoming_order_tick,
+                last_tick,
                 U256::from(remaining_incoming_order_volume),
                 incoming_order_user,
                 incoming_order_is_buy,
