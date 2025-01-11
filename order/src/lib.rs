@@ -33,15 +33,13 @@ sol_storage! {
 
     pub struct Order {
         address user;
-        uint128 volume_in;
-        uint128 volume_out;
+        uint128 volume;
     }
 
     pub struct Tick {
         uint128 start_index;
         uint128 length;
-        uint128 volume_in;
-        uint128 volume_out;
+        uint128 volume;
         bool is_buy;
     }
 }
@@ -72,13 +70,12 @@ impl OrderManager {
         let tick_manager_address = self.tick_manager_address.get();
         let tick_manager = ITickManager::new(tick_manager_address);
 
-        let (start_index, length, tick_volume, tick_is_buy) =
-            tick_manager.get_tick_data(&*self, tick).unwrap();
+        let (start_index, length, _, _) = tick_manager.get_tick_data(&*self, tick).unwrap();
 
         let order_index = start_index + length % U256::from(256);
 
         self.write_order(tick, order_index, user, volume);
-        tick_manager.set_tick_data(self, tick, volume, is_buy, false);
+        let _ = tick_manager.set_tick_data(self, tick, volume, is_buy, false);
 
         evm::log(InsertOrder {
             user: user,

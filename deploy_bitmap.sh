@@ -6,7 +6,7 @@ private_key="0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659"
 
 # Define the modules
 # modules=("bitmap" "engine")
-modules=("balance-manager" "pool-manager" "pool-orderbook")
+modules=("bitmap")
 
 # Define the deployment command
 deploy_command="cargo stylus deploy -e http://localhost:8547 --private-key \$private_key --no-verify"
@@ -37,10 +37,12 @@ echo "All deployed addresses:"
 for module in "${!addresses[@]}"; do
   snake_case_module=$(echo "$module" | sed -r 's/([a-z])([A-Z])/\1_\2/g; s/-/_/g' | tr '[:lower:]' '[:upper:]')
   echo "export "${snake_case_module}_ADDRESS=${addresses[$module]}""
-  echo "${snake_case_module}_ADDRESS=${addresses[$module]}" >> .env.example
 done
 
 # Define the RPC URL
 rpc_url="http://localhost:8547"
 
-# echo "Initialize contracts"
+echo "Get conversion from tick to price"
+price_hex=$(cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "convertFromTickToPrice(int32)" 219772)
+price_dec=$(printf "%d\n" "$price_hex")
+echo "Price: $price_dec"

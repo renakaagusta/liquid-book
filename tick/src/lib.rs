@@ -11,7 +11,11 @@ use stylus_sdk::{
 };
 
 sol! {
+<<<<<<< HEAD
     event SetTickData(int128 indexed tick, bool indexed is_buy, uint256 indexed volume, bool is_existing_order);
+=======
+    event SetTickData(uint256 indexed tick, bool indexed is_buy, uint256 indexed volume, bool is_existing_order);
+>>>>>>> 5a8fc53 (adjust matcher with balance-mamager)
 }
 
 sol_storage! {
@@ -25,15 +29,13 @@ sol_storage! {
 
     pub struct Order {
         address user;
-        uint128 volume_in;
-        uint128 volume_out;
+        uint128 volume;
     }
 
     pub struct Tick {
         uint128 start_index;
         uint128 length;
-        uint128 volume_in;
-        uint128 volume_out;
+        uint128 volume;
         bool is_buy;
     }
 }
@@ -69,8 +71,7 @@ impl TickManager {
         let tick_data = self.ticks.get(tick.to_string().parse::<I128>().unwrap());
         let mut updated_start_index = tick_data.start_index.get();
         let mut updated_length = tick_data.length.get();
-        let mut updated_volume_in = tick_data.volume_in.get();
-        let mut updated_volume_out = tick_data.volume_out.get();
+        let mut updated_volume = tick_data.volume.get();
         let mut updated_is_buy = tick_data.is_buy.get();
         let initial_volume = tick_data.volume.get();
 
@@ -137,14 +138,13 @@ impl TickManager {
             let converted_tick: i32 = tick.try_into().unwrap();
             let bitmap_manager = IBitmapStorage::new(self.bitmap_manager_address.get());
 
-            bitmap_manager.flip(self, converted_tick);
+            let _ = bitmap_manager.flip(self, converted_tick);
         }
 
         evm::log(SetTickData {
             tick: tick,
             is_buy: updated_is_buy,
-            volume_in: U256::from(updated_volume_in),
-            volume_out: U256::from(updated_volume_out),
+            volume: U256::from(updated_volume),
             is_existing_order: is_existing_order,
         });
     }
@@ -155,8 +155,7 @@ impl TickManager {
         (
             U256::from(tick_data.start_index.get()),
             U256::from(tick_data.length.get()),
-            U256::from(tick_data.volume_in.get()),
-            U256::from(tick_data.volume_out.get()),
+            U256::from(tick_data.volume.get()),
             tick_data.is_buy.get(),
         )
     }

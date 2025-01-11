@@ -26,7 +26,15 @@ process_gas() {
 
 # Define the modules
 # modules=("bitmap" "engine")
+<<<<<<< HEAD
 modules=("tick" "order" "matcher" "engine" "bitmap")
+=======
+<<<<<<< HEAD
+modules=("order" "matcher" "engine" "bitmap" "tick")
+=======
+modules=("bitmap" "tick" "order" "matcher" "engine" "pool-orderbook")
+>>>>>>> 5a8fc53 (adjust matcher with balance-mamager)
+>>>>>>> 9b38baa (adjust matcher with balance-mamager)
 
 # Define the deployment command
 deploy_command="cargo stylus deploy -e \$rpc_url --private-key \$private_key --no-verify"
@@ -136,6 +144,7 @@ echo "Get bitmap #3"
 cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "getBitmap(int16)" 0 > /dev/null 2>&1
 
 echo "Get tick #3"
+<<<<<<< HEAD
 cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "getCurrentTick()(int128)" > /dev/null 2>&1
 
 echo "Place additional limit buy order at 96"
@@ -158,3 +167,11 @@ done
 
 echo "Total gas used: $sum"
 [ $count -gt 0 ] && echo "Average gas used: $((sum / count))" || echo "No gas usage found"
+=======
+cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "getCurrentTick()(int128)" 
+
+echo "Get conversion from tick to price"
+price_hex=$(cast call --rpc-url $rpc_url --private-key $private_key "${addresses[bitmap]}" "convertFromTickToPrice(int32)" 219772)
+price_dec=$(printf "%d\n" "$price_hex")
+echo "Price: $price_dec"
+>>>>>>> 9b38baa (adjust matcher with balance-mamager)

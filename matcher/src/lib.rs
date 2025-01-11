@@ -33,6 +33,7 @@ sol_interface! {
     interface IBitmapManager {
         function setCurrentTick(int128 tick) external returns (uint256);
         function flip(int32 tick) external returns (int16, uint8);
+        function convertFromTickToPrice(int32 tick) external view returns (uint256);
     }
 
     interface IOrderManager {
@@ -41,9 +42,8 @@ sol_interface! {
 
     interface IPoolLiquidBook {
         function placeOrder(
-            uint256 incoming_order_tick,
-            uint256 incoming_order_volume_in,
-            uint256 incoming_order_volume_out,
+            int32 incoming_order_tick,
+            uint256 incoming_order_volume,
             address incoming_order_user,
             bool incoming_order_is_buy,
             bool incoming_order_is_market
@@ -53,10 +53,10 @@ sol_interface! {
             address sender,
             address receiver,
             uint256 volume,
+            uint256 price_per_volume,
             bool is_buy
         ) external;
     }
-
 }
 
 #[public]
@@ -66,11 +66,13 @@ impl MatcherManager {
         tick_manager_address: Address,
         bitmap_manager_address: Address,
         order_manager_address: Address,
+        pool_manager_address: Address,
         pool_address: Address,
     ) {
         self.tick_manager_address.set(tick_manager_address);
         self.bitmap_manager_address.set(bitmap_manager_address);
         self.order_manager_address.set(order_manager_address);
+        self.pool_manager_address.set(pool_manager_address);
         self.pool_address.set(pool_address);
     }
 
@@ -93,21 +95,20 @@ impl MatcherManager {
 
         for (order_tick, order_index, order_volume, order_user) in valid_orders {
             let mut remaining_order_volume = order_volume;
+            let use_order_volume;
 
-            if remaining_order_volume_in < remaining_incoming_order_volume_in {
-                remaining_incoming_order_volume_in -= order_volume_in;
-                remaining_incoming_order_volume_out -= order_volume_out;
-                remaining_order_volume_in = U256::ZERO;
-                remaining_order_volume_out = U256::ZERO;
-            } else if remaining_order_volume_in == remaining_incoming_order_volume_in {
-                remaining_order_volume_in = U256::ZERO;
-                remaining_order_volume_out = U256::ZERO;
-                remaining_incoming_order_volume_in = U256::ZERO;
-                remaining_incoming_order_volume_out = U256::ZERO;
+            if remaining_order_volume < remaining_incoming_order_volume {
+                remaining_incoming_order_volume -= order_volume;
+                remaining_order_volume = U256::ZERO;
+                use_order_volume = order_volume;
+            } else if remaining_order_volume == remaining_incoming_order_volume {
+                remaining_order_volume = U256::ZERO;
+                remaining_incoming_order_volume = U256::ZERO;
+                use_order_volume = order_volume;
             } else {
-                remaining_order_volume_in -= remaining_incoming_order_volume_in;
-                remaining_incoming_order_volume_in = U256::ZERO;
-                remaining_incoming_order_volume_out = U256::ZERO;
+                remaining_order_volume -= remaining_incoming_order_volume;
+                use_order_volume = remaining_incoming_order_volume;
+                remaining_incoming_order_volume = U256::ZERO;
             }
 
             remaining_tick_volume -= order_volume - remaining_order_volume;
@@ -127,9 +128,7 @@ impl MatcherManager {
             let _ = pool.transfer_locked(&mut *self, user, order_user, order_volume, is_buy);
             let _ = pool.transfer_locked(&mut *self, order_user, user, order_volume, !is_buy);
 
-            console!("MATCHER :: result: {:?}", result);
-
-            if remaining_incoming_order_volume_in == U256::ZERO {
+            if remaining_incoming_order_volume == U256::ZERO {
                 break;
             }
         }
