@@ -163,7 +163,6 @@ impl OrderManager {
         let mut encoded = [0u8; 32];
         encoded[..20].copy_from_slice(&<[u8; 20]>::from(user));
         encoded[20..32].copy_from_slice(&volume.to_be_bytes::<32>()[20..32]);
-
         Ok(encoded)
     }
 

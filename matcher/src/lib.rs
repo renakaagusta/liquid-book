@@ -33,7 +33,7 @@ sol_interface! {
     interface IBitmapManager {
         function setCurrentTick(int128 tick) external returns (uint256);
         function flip(int32 tick) external returns (int16, uint8);
-        function convertFromTickToPrice(int32 tick) external view returns (uint256);
+        function convertFromTickToPrice(int128 tick) external view returns (uint256);
     }
 
     interface IOrderManager {
@@ -50,10 +50,10 @@ sol_interface! {
         ) external;
 
         function transferLocked(
+            int128 tick,
+            uint256 volume,
             address sender,
             address receiver,
-            uint256 volume,
-            uint256 price_per_volume,
             bool is_buy
         ) external;
     }
@@ -66,13 +66,11 @@ impl MatcherManager {
         tick_manager_address: Address,
         bitmap_manager_address: Address,
         order_manager_address: Address,
-        pool_manager_address: Address,
         pool_address: Address,
     ) {
         self.tick_manager_address.set(tick_manager_address);
         self.bitmap_manager_address.set(bitmap_manager_address);
         self.order_manager_address.set(order_manager_address);
-        self.pool_manager_address.set(pool_manager_address);
         self.pool_address.set(pool_address);
     }
 
@@ -85,6 +83,8 @@ impl MatcherManager {
         incoming_order_volume: U256,
         tick_value: i128,
         tick_volume: U256,
+        incoming_order_user: Address,
+        incoming_order_is_buy: bool,
     ) -> U256 {
         let mut remaining_incoming_order_volume = incoming_order_volume;
         let mut remaining_tick_volume = tick_volume;
@@ -96,6 +96,11 @@ impl MatcherManager {
         for (order_tick, order_index, order_volume, order_user) in valid_orders {
             let mut remaining_order_volume = order_volume;
             let use_order_volume;
+            let (buyer, seller) = if incoming_order_is_buy {
+                (incoming_order_user, order_user)
+            } else {
+                (order_user, incoming_order_user)
+            };
 
             if remaining_order_volume < remaining_incoming_order_volume {
                 remaining_incoming_order_volume -= order_volume;

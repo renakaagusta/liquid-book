@@ -6,12 +6,12 @@ use alloy_primitives::Address;
 use alloy_sol_macro::sol;
 use stylus_sdk::{alloy_primitives::U256, console, evm, prelude::*};
 
-// use core::panic::PanicInfo;
+use core::panic::PanicInfo;
 
-// #[panic_handler]
-// fn panic(_info: &PanicInfo) -> ! {
-//     loop {}
-// }
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    loop {}
+}
 
 sol! {
     event PlaceOrder(address indexed user, int128 indexed tick, uint256 order_index, bool is_buy, bool is_market, uint256 volume, uint256 remaining_volume);
@@ -68,16 +68,19 @@ impl LiquidBookEngine {
 
     pub fn place_order(
         &mut self,
-        incoming_order_tick: i128,
         incoming_order_volume: U256,
+        incoming_order_tick: i128,
         incoming_order_user: Address,
         incoming_order_is_buy: bool,
         incoming_order_is_market: bool,
     ) -> (U256, i128, U256) {
+        console!("Engine log 0");
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
         let order_manager = IOrderManager::new(self.order_manager_address.get());
         let bitmap_manager = IBitmapManager::new(self.bitmap_manager_address.get());
         let matcher = IMatcherManager::new(self.matcher_manager_address.get());
+
+        console!("Engine log 1");
 
         let mut remaining_incoming_order_volume: alloy_primitives::Uint<256, 4> =
             incoming_order_volume;
@@ -85,6 +88,8 @@ impl LiquidBookEngine {
             .top_n_best_ticks(&*self, incoming_order_is_buy)
             .unwrap();
         let current_tick: i128 = bitmap_manager.get_current_tick(&*self).unwrap();
+
+        console!("Engine log 2");
 
         let filtered_possible_ticks: Vec<i128> = if incoming_order_is_market {
             possible_ticks
@@ -103,12 +108,12 @@ impl LiquidBookEngine {
         };
 
         let mut last_tick = incoming_order_tick;
-        let mut order_index = U256::from(256);
+        let order_index = U256::from(256);
 
         if !filtered_possible_ticks.is_empty() {
             for tick in filtered_possible_ticks {
-                let (start_index, _, volume, _, order_user) =
-                    tick_manager.get_tick_data(&*self, tick).unwrap();
+                console!("Engine get tick data");
+                let (start_index, _, volume, _) = tick_manager.get_tick_data(&*self, tick).unwrap();
 
                 if volume != U256::ZERO {
                     let mut orders: Vec<(i128, U256, U256, Address)> = Vec::new();

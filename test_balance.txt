@@ -1,9 +1,5 @@
-export RPC_URL="http://localhost:8547"
-export STYLUS_LOCAL_DEV_PK="0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659"
-export USER_ADDRESS="0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E"
-export MOCK_USDC_ADDRESS=0x84401cd7abbebb22acb7af2becfd9be56c30bcf1
-export BALANCE_MANAGER_ADDRESS=0x1b9cbdc65a7bebb0be7f18d93a1896ea1fd46d7a
-export NEW_USER_ADDRESS="0x5aAeb1eD9d1b5b1e480f7f0b3d1e1e1e1e1e1e1e"
+source .env
+source .env.example
 
 # Mint tokens for mock-usdc
 # cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $MOCK_USDC_ADDRESS "mint(uint256)" 100000000000
@@ -43,7 +39,7 @@ cast call --rpc-url $RPC_URL $BALANCE_MANAGER_ADDRESS "getLockedBalance(address,
 
 # Transfer locked tokens to new user address
 echo "Transferring locked tokens to new user address..."
-cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $BALANCE_MANAGER_ADDRESS "transferLocked(address,address,address,address,uint256)" $USER_ADDRESS $USER_ADDRESS $NEW_USER_ADDRESS $MOCK_USDC_ADDRESS 500
+cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $BALANCE_MANAGER_ADDRESS "transferLocked(address,address,address,address,uint256)" $USER_ADDRESS $USER_ADDRESS $USER_2_ADDRESS $MOCK_USDC_ADDRESS 500
 
 # Unlock remaining locked tokens
 echo "Unlocking remaining locked tokens..."
@@ -57,9 +53,9 @@ cast call --rpc-url $RPC_URL $BALANCE_MANAGER_ADDRESS "getBalance(address,addres
 echo "Checking USER locked balance after transfer..."
 cast call --rpc-url $RPC_URL $BALANCE_MANAGER_ADDRESS "getLockedBalance(address,address,address)(uint256)" $USER_ADDRESS $MOCK_USDC_ADDRESS $USER_ADDRESS
 
-# Check balances for NEW_USER after transfer
-echo "Checking NEW_USER balance after transfer..."
-cast call --rpc-url $RPC_URL $BALANCE_MANAGER_ADDRESS "getBalance(address,address)(uint256)" $NEW_USER_ADDRESS $MOCK_USDC_ADDRESS
+# Check balances for USER_2 after transfer
+echo "Checking USER_2 balance after transfer..."
+cast call --rpc-url $RPC_URL $BALANCE_MANAGER_ADDRESS "getBalance(address,address)(uint256)" $USER_2_ADDRESS $MOCK_USDC_ADDRESS
 
 # Withdraw 500 tokens from the BalanceManager contract
 echo "Withdrawing 500 tokens..."

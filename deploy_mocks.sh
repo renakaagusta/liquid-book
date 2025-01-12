@@ -32,17 +32,18 @@ for module in "${modules[@]}"; do
   echo "Deployed $module at address: ${addresses[$module]}"
 done
 
-# Print all addresses
+# Print all addresses and export them to .env.example
 echo "All deployed addresses:"
 for module in "${!addresses[@]}"; do
   snake_case_module=$(echo "$module" | sed -r 's/([a-z])([A-Z])/\1_\2/g; s/-/_/g' | tr '[:lower:]' '[:upper:]')
-  echo "export "${snake_case_module}_ADDRESS=${addresses[$module]}""
   if ! grep -q "${snake_case_module}_ADDRESS=" .env.example; then
+    echo "export \"${snake_case_module}_ADDRESS=${addresses[$module]}\""
     echo "${snake_case_module}_ADDRESS=${addresses[$module]}" >> .env.example
   else
-    sed -i "s|${snake_case_module}_ADDRESS=.*|${snake_case_module}_ADDRESS=${addresses[$module]}|" .env.example
+    sed -i "s/${snake_case_module}_ADDRESS=.*/${snake_case_module}_ADDRESS=${addresses[$module]}/" .env.example
   fi
 done
+
 
 # Define the RPC URL
 rpc_url="http://localhost:8547"

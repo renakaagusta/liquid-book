@@ -11,11 +11,7 @@ use stylus_sdk::{
 };
 
 sol! {
-<<<<<<< HEAD
     event SetTickData(int128 indexed tick, bool indexed is_buy, uint256 indexed volume, bool is_existing_order);
-=======
-    event SetTickData(uint256 indexed tick, bool indexed is_buy, uint256 indexed volume, bool is_existing_order);
->>>>>>> 5a8fc53 (adjust matcher with balance-mamager)
 }
 
 sol_storage! {
