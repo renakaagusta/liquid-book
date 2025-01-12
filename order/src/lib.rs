@@ -8,7 +8,8 @@ use stylus_sdk::{
     alloy_primitives::{keccak256, Address, U256},
     hostio::{storage_cache_bytes32, storage_flush_cache, storage_load_bytes32},
     prelude::*,
-    evm
+    evm,
+    console
 };
 
 use core::panic::PanicInfo;
@@ -77,7 +78,7 @@ impl OrderManager {
 
         self.write_order(tick, order_index, user, volume);
         tick_manager.set_tick_data(self, tick, volume, is_buy, false);
-    
+
         evm::log(InsertOrder {
             user: user,
             tick: tick,
@@ -89,7 +90,7 @@ impl OrderManager {
         order_index
     }
 
-    pub fn update_order(&mut self, tick: i128, volume: U256, order_index: U256) {
+    pub fn update_order(&mut self, tick: i128, tick_volume: U256, volume: U256, order_index: U256) {
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
         let order_data = self.read_order(tick, order_index).unwrap();
 
@@ -98,8 +99,6 @@ impl OrderManager {
         } else {
             self.write_order(tick, U256::from(order_index), order_data.0, volume);
         }
-
-        tick_manager.set_tick_data(self, tick, volume, false, true);
 
         evm::log(UpdateOrder {
             tick: tick,
@@ -123,8 +122,9 @@ impl OrderManager {
 
         let encoded_order_data = buffer_order_data.to_vec();
         let decoded_order_data = self.decode_order_data(encoded_order_data);
+        let order_data = decoded_order_data.unwrap();
 
-        Ok(decoded_order_data.unwrap())
+        Ok(order_data)
     }
 
     pub fn write_order(&mut self, tick: i128, order_index: U256, user: Address, volume: U256) {
