@@ -82,11 +82,10 @@ impl MatcherManager {
         let bitmap_manager = IBitmapManager::new(self.bitmap_manager_address.get());
         let order_manager = IOrderManager::new(self.order_manager_address.get());
         let pool = IPoolLiquidBook::new(self.pool_address.get());
-        // console!("Pool Address: {:?}", self.pool_address.get());
 
         for (order_tick, order_index, order_volume, order_user) in valid_orders {
             let mut remaining_order_volume = order_volume;
-            let mut _use_order_volume = U256::ZERO;
+            let use_order_volume;
             let (buyer, seller) = if is_buy {
                 (user, order_user)
             } else {
@@ -94,17 +93,17 @@ impl MatcherManager {
             };
 
             if remaining_order_volume < remaining_incoming_order_volume {
+                use_order_volume = order_volume;
                 remaining_incoming_order_volume -= order_volume;
                 remaining_order_volume = U256::ZERO;
-                _use_order_volume = order_volume;
             } else if remaining_order_volume == remaining_incoming_order_volume {
+                use_order_volume = order_volume;
                 remaining_order_volume = U256::ZERO;
                 remaining_incoming_order_volume = U256::ZERO;
-                _use_order_volume = order_volume;
             } else {
+                use_order_volume = remaining_incoming_order_volume;
                 remaining_order_volume -= remaining_incoming_order_volume;
                 remaining_incoming_order_volume = U256::ZERO;
-                _use_order_volume = remaining_incoming_order_volume;
             }
 
             remaining_tick_volume -= order_volume - remaining_order_volume;
@@ -117,31 +116,20 @@ impl MatcherManager {
                 is_market: is_market,
                 volume: order_volume - remaining_order_volume,
             });
-
-            console!("Tx locked 1");
-            if let Err(e) = pool.transfer_locked(
-                &mut *self,
+            console!(
+                "Tick: {:?}, Buyer: {:?}, Seller: {:?}, Volume: {:?}",
                 order_tick,
-                _use_order_volume,
                 buyer,
                 seller,
-                // true,
-            ) {
+                use_order_volume
+            );
+
+            if let Err(e) =
+                pool.transfer_locked(&mut *self, order_tick, use_order_volume, buyer, seller)
+            {
                 console!("Error during transfer_locked: {:?}", e);
                 return Err(e.into());
             };
-            // console!("Tx locked 2");
-            // if let Err(e) = pool.transfer_locked(
-            //     &mut *self,
-            //     order_tick,
-            //     _use_order_volume,
-            //     seller,
-            //     buyer,
-            //     false,
-            // ) {
-            //     console!("Error during transfer_locked: {:?}", e);
-            //     return Err(e.into());
-            // };
 
             let _ = bitmap_manager.set_current_tick(&mut *self, order_tick);
             let _ = order_manager.update_order(
