@@ -15,7 +15,7 @@ alloy-sol-macro = { version = "=0.7.6", default-features = false }
 alloy-sol-macro-expander = { version = "=0.7.6", default-features = false }
 alloy-sol-macro-input = { version = "=0.7.6", default-features = false }
 mini-alloc = "0.4.2"
-# stylus-sdk = { version = "0.6.0" }
+# stylus-sdk = { version = "0.6.0", features = ["debug"] }
 stylus-sdk = { version = "0.6.0" }
 hex = "0.4.3"
 dotenv = "0.15.0"

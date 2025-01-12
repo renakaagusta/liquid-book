@@ -15,7 +15,7 @@ contract OrderManager {
 
     function insertOrder(int128 tick, uint256 volume, address user, bool is_buy) external returns (uint256);
 
-    function updateOrder(int128 tick, uint256 volume, uint256 order_index) external;
+    function updateOrder(int128 tick, uint256 tick_volume, uint256 volume, uint256 order_index) external;
 
     function readOrder(int128 tick, uint256 order_index) external view returns (address, uint256);
 

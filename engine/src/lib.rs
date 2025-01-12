@@ -7,7 +7,8 @@ use alloy_sol_macro::sol;
 use stylus_sdk::{
     alloy_primitives::U256, 
     prelude::*, 
-    evm
+    evm,
+    console
 };
 
 // use core::panic::PanicInfo;
@@ -35,7 +36,6 @@ sol_interface! {
     interface ITickManager {
         function getTickData(int128 tick) external view returns (uint256, uint256, uint256, bool);
         function setTickData(int128 tick, (uint256, uint256, uint256, bool) tick_data) external;
-        function getCurrentTick() external view returns (uint256);
     }
 
     interface IOrderManager {
@@ -44,12 +44,14 @@ sol_interface! {
         function writeOrder(int128 tick, uint256 order_index, address user, uint256 volume) external;
     }
 
-    interface IBitmapStorage {
+    interface IBitmapManager {
         function topNBestTicks(bool is_buy) external view returns (int128[] memory);
+        function getCurrentTick() external view returns (int128);
+        function setCurrentTick(int128 tick) external returns (int128); 
     }
 
     interface IMatcherManager {
-        function execute((int128,uint256,uint256)[] valid_orders, uint256 incoming_order_volume, int128 tick_value, uint256 tick_volume) external returns (uint256);
+        function execute(address user, bool is_buy, bool is_market, (int128,uint256,uint256)[] valid_orders, uint256 incoming_order_volume, int128 tick_value, uint256 tick_volume) external returns (uint256);
     }
 }
 
@@ -73,12 +75,13 @@ impl LiquidBookEngine {
     ) -> (U256, i128, U256) {
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
         let order_manager = IOrderManager::new(self.order_manager_address.get());
-        let bitmap_manager = IBitmapStorage::new(self.bitmap_manager_address.get());
+        let bitmap_manager = IBitmapManager::new(self.bitmap_manager_address.get());
         let matcher = IMatcherManager::new(self.matcher_manager_address.get());
 
         let mut remaining_incoming_order_volume: alloy_primitives::Uint<256, 4> =
             incoming_order_volume;
         let possible_ticks: Vec<i128> = bitmap_manager.top_n_best_ticks(&*self, incoming_order_is_buy).unwrap();
+        let current_tick: i128 = bitmap_manager.get_current_tick(&*self).unwrap();
 
         let filtered_possible_ticks: Vec<i128> = if incoming_order_is_market {
             possible_ticks
@@ -103,9 +106,9 @@ impl LiquidBookEngine {
             for tick in filtered_possible_ticks {
                 let (start_index, _, volume, _) = tick_manager.get_tick_data(&*self, tick).unwrap();
 
-                let mut orders: Vec<(i128, U256, U256)> = Vec::new();
-
                 if volume != U256::ZERO {
+                    let mut orders: Vec<(i128, U256, U256)> = Vec::new();
+
                     let mut index = start_index % U256::from(256);
 
                     loop {
@@ -121,36 +124,32 @@ impl LiquidBookEngine {
                             break;
                         }     
                     }
-                }
 
-                if !orders.is_empty() {
-                    remaining_incoming_order_volume = matcher.execute(&mut *self, orders, remaining_incoming_order_volume, tick, volume).unwrap();
-                }
+                    if !orders.is_empty() {
+                        remaining_incoming_order_volume = matcher.execute(&mut *self, incoming_order_user, incoming_order_is_buy, incoming_order_is_market, orders, remaining_incoming_order_volume, tick, volume).unwrap();
+                    }
 
-                if remaining_incoming_order_volume == U256::ZERO {
-                    break;
-                }
+                    if remaining_incoming_order_volume == U256::ZERO {
+                        break;
+                    }
 
-                last_tick = tick;
+                    last_tick = tick;
+                }
             }
+        } 
 
-            if remaining_incoming_order_volume != U256::ZERO {
-                order_index = order_manager.insert_order(
-                    self,
-                    last_tick,
-                    U256::from(remaining_incoming_order_volume),
-                    incoming_order_user,
-                    incoming_order_is_buy,
-                ).unwrap();
-            }
-        } else {     
+        if remaining_incoming_order_volume != U256::ZERO {
             order_index = order_manager.insert_order(
-                self,
-                incoming_order_tick,
+                &mut *self,
+                last_tick,
                 U256::from(remaining_incoming_order_volume),
                 incoming_order_user,
                 incoming_order_is_buy,
             ).unwrap();
+
+            if last_tick > current_tick && incoming_order_is_buy == true || last_tick < current_tick && incoming_order_is_buy == false {
+                bitmap_manager.set_current_tick(&mut *self, last_tick);
+            }
         }
 
         evm::log(PlaceOrder {

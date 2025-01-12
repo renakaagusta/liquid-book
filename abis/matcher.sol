@@ -7,7 +7,9 @@
 pragma solidity ^0.8.23;
 
 contract Matcher {
-    function initialize(address bitmap_manager_address, address order_manager_address) external;
+    event MatchOrder(address indexed user, int128 indexed tick, uint256 order_index, bool is_buy, bool is_market, uint256 volume);
 
-    function execute((int128,uint256,uint256)[] memory valid_orders, uint256 incoming_order_volume, int128 tick_value, uint256 tick_volume) external returns (uint256);
+    function initialize(address tick_manager_address, address bitmap_manager_address, address order_manager_address) external;
+
+    function execute(address user, bool is_buy, bool is_market, (int128,uint256,uint256)[] memory valid_orders, uint256 incoming_order_volume, int128 tick_value, uint256 tick_volume) external returns (uint256);
 }
