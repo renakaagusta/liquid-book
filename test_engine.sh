@@ -1,5 +1,5 @@
 source .env
-source .env.example
+
 
 # export RPC_URL=
 export PRIVATE_KEY=$STYLUS_LOCAL_DEV_PK

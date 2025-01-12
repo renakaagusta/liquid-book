@@ -46,7 +46,7 @@ sol_interface! {
     }
 
     interface IMatcherManager {
-        function execute(address user, bool is_buy, bool is_market, (int128,uint256,uint256)[] valid_orders, uint256 incoming_order_volume, int128 tick_value, uint256 tick_volume) external returns (uint256);
+        function execute(address user, bool is_buy, bool is_market, (int128,uint256,uint256,address)[] valid_orders, uint256 incoming_order_volume, int128 tick_value, uint256 tick_volume) external returns (uint256);
     }
 }
 
@@ -80,16 +80,13 @@ impl LiquidBookEngine {
         let bitmap_manager = IBitmapManager::new(self.bitmap_manager_address.get());
         let matcher = IMatcherManager::new(self.matcher_manager_address.get());
 
-        console!("Engine log 1");
-
         let mut remaining_incoming_order_volume: alloy_primitives::Uint<256, 4> =
             incoming_order_volume;
         let possible_ticks: Vec<i128> = bitmap_manager
             .top_n_best_ticks(&*self, incoming_order_is_buy)
             .unwrap();
-        let current_tick: i128 = bitmap_manager.get_current_tick(&*self).unwrap();
 
-        console!("Engine log 2");
+        let current_tick: i128 = bitmap_manager.get_current_tick(&*self).unwrap();
 
         let filtered_possible_ticks: Vec<i128> = if incoming_order_is_market {
             possible_ticks
@@ -108,11 +105,10 @@ impl LiquidBookEngine {
         };
 
         let mut last_tick = incoming_order_tick;
-        let order_index = U256::from(256);
+        let mut order_index = U256::from(256);
 
         if !filtered_possible_ticks.is_empty() {
             for tick in filtered_possible_ticks {
-                console!("Engine get tick data");
                 let (start_index, _, volume, _) = tick_manager.get_tick_data(&*self, tick).unwrap();
 
                 if volume != U256::ZERO {
@@ -172,7 +168,7 @@ impl LiquidBookEngine {
             if last_tick > current_tick && incoming_order_is_buy == true
                 || last_tick < current_tick && incoming_order_is_buy == false
             {
-                bitmap_manager.set_current_tick(&mut *self, last_tick);
+                let _ = bitmap_manager.set_current_tick(&mut *self, last_tick);
             }
         }
 

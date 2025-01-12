@@ -6,7 +6,7 @@ use crate::alloc::string::ToString;
 use alloy_sol_macro::sol;
 use stylus_sdk::{
     alloy_primitives::{Address, I128, U128, U256},
-    console, evm, evm,
+    console, evm,
     prelude::{entrypoint, public, sol_interface, sol_storage},
 };
 

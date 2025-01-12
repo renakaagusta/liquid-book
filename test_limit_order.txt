@@ -1,5 +1,5 @@
 source .env
-source .env.example
+
 
 #Deploy Bitmap and init engine
 cast send $ENGINE_ADDRESS "initialize(address)" $BITMAP_ADDRESS --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK

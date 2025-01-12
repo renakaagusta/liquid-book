@@ -1,11 +1,11 @@
 source .env
-source .env.example
+
 
 # # Send ETH to USER_2 for gas
-# cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $USER_2_ADDRESS --value 1000000000000000000
+# cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $USER_2_ADDRESS --value 10000000000000000000
 
 # # Send ETH to USER_3 for gas
-# cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $USER_3_ADDRESS --value 1000000000000000000
+# cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $USER_3_ADDRESS --value 10000000000000000000000000
 
 # Mint tokens mock-usdc for USER_2 (100K USDC)
 cast send --rpc-url $RPC_URL --private-key $USER_2_PK $MOCK_USDC_ADDRESS "mint(uint256)" 1000000000000

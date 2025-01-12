@@ -9,11 +9,11 @@
 # cast send --rpc-url $rpc_url --private-key $private_key "0xab163eb7b64fc0478844b29321cc7af85676f7f7" "placeOrder(int128,uint256,address,bool,bool)(uint256,i128,u256)" "-- -100" 2577619610815930 "0xF63fb6da9b0EEdD4786C8ee464962b5E1b17AD1d" true false
 
 ./deploy.sh
-# ./deploy_mocks.shc
+# ./deploy_mocks.sh
 ./deploy_balance.sh
 
-source ./.env
-source ./.env.example
+source .env
 
 ./test_init_all.sh
 ./test_deposit_balance.sh
+./test_limit_orders.sh

@@ -1,5 +1,5 @@
 source .env
-source .env.example
+
 
 # Mint tokens for mock-usdc
 # cast send --rpc-url $RPC_URL --private-key $STYLUS_LOCAL_DEV_PK $MOCK_USDC_ADDRESS "mint(uint256)" 100000000000

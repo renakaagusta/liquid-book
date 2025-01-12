@@ -99,7 +99,7 @@ impl BitmapManager {
         self.position(tick)
     }
 
-    fn get_bitmap(&mut self, index: i16) {
+    fn get_bitmap(&mut self, index: i16) -> U256 {
         self.storage.get(index)
         // console!("BITMAP :: bitmap: {:b}", bitmap);
     }

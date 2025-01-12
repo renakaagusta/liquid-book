@@ -33,15 +33,15 @@ for module in "${modules[@]}"; do
 done
 
 # Print all addresses
-# Print all addresses and export them to .env.example
+# Print all addresses and export them to .env
 echo "All deployed addresses:"
 for module in "${!addresses[@]}"; do
   snake_case_module=$(echo "$module" | sed -r 's/([a-z])([A-Z])/\1_\2/g; s/-/_/g' | tr '[:lower:]' '[:upper:]')
-  if ! grep -q "${snake_case_module}_ADDRESS=" .env.example; then
+  if ! grep -q "${snake_case_module}_ADDRESS=" .env; then
     echo "export \"${snake_case_module}_ADDRESS=${addresses[$module]}\""
-    echo "${snake_case_module}_ADDRESS=${addresses[$module]}" >> .env.example
+    echo "${snake_case_module}_ADDRESS=${addresses[$module]}" >> .env
   else
-    sed -i "s/${snake_case_module}_ADDRESS=.*/${snake_case_module}_ADDRESS=${addresses[$module]}/" .env.example
+    sed -i "s/${snake_case_module}_ADDRESS=.*/${snake_case_module}_ADDRESS=${addresses[$module]}/" .env
   fi
 done
 

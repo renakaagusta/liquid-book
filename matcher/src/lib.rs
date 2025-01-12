@@ -2,6 +2,7 @@
 #![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
 
+use alloy_sol_macro::sol;
 use stylus_sdk::{
     alloy_primitives::{Address, U256},
     console, evm,
@@ -41,20 +42,11 @@ sol_interface! {
     }
 
     interface IPoolLiquidBook {
-        function placeOrder(
-            int32 incoming_order_tick,
-            uint256 incoming_order_volume,
-            address incoming_order_user,
-            bool incoming_order_is_buy,
-            bool incoming_order_is_market
-        ) external;
-
         function transferLocked(
-            int128 tick,
-            uint256 volume,
+            int128 transfer_tick,
+            uint256 transfer_volume,
             address sender,
-            address receiver,
-            bool is_buy
+            address receiver
         ) external;
     }
 }
@@ -83,37 +75,36 @@ impl MatcherManager {
         incoming_order_volume: U256,
         tick_value: i128,
         tick_volume: U256,
-        incoming_order_user: Address,
-        incoming_order_is_buy: bool,
-    ) -> U256 {
+    ) -> Result<U256, Vec<u8>> {
         let mut remaining_incoming_order_volume = incoming_order_volume;
         let mut remaining_tick_volume = tick_volume;
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
         let bitmap_manager = IBitmapManager::new(self.bitmap_manager_address.get());
         let order_manager = IOrderManager::new(self.order_manager_address.get());
         let pool = IPoolLiquidBook::new(self.pool_address.get());
+        // console!("Pool Address: {:?}", self.pool_address.get());
 
         for (order_tick, order_index, order_volume, order_user) in valid_orders {
             let mut remaining_order_volume = order_volume;
-            let use_order_volume;
-            let (buyer, seller) = if incoming_order_is_buy {
-                (incoming_order_user, order_user)
+            let mut _use_order_volume = U256::ZERO;
+            let (buyer, seller) = if is_buy {
+                (user, order_user)
             } else {
-                (order_user, incoming_order_user)
+                (order_user, user)
             };
 
             if remaining_order_volume < remaining_incoming_order_volume {
                 remaining_incoming_order_volume -= order_volume;
                 remaining_order_volume = U256::ZERO;
-                use_order_volume = order_volume;
+                _use_order_volume = order_volume;
             } else if remaining_order_volume == remaining_incoming_order_volume {
                 remaining_order_volume = U256::ZERO;
                 remaining_incoming_order_volume = U256::ZERO;
-                use_order_volume = order_volume;
+                _use_order_volume = order_volume;
             } else {
                 remaining_order_volume -= remaining_incoming_order_volume;
-                use_order_volume = remaining_incoming_order_volume;
                 remaining_incoming_order_volume = U256::ZERO;
+                _use_order_volume = remaining_incoming_order_volume;
             }
 
             remaining_tick_volume -= order_volume - remaining_order_volume;
@@ -127,21 +118,47 @@ impl MatcherManager {
                 volume: order_volume - remaining_order_volume,
             });
 
-            bitmap_manager.set_current_tick(&mut *self, order_tick);
-            order_manager.update_order(&mut *self, order_tick, order_index, remaining_order_volume);
+            console!("Tx locked 1");
+            if let Err(e) = pool.transfer_locked(
+                &mut *self,
+                order_tick,
+                _use_order_volume,
+                buyer,
+                seller,
+                // true,
+            ) {
+                console!("Error during transfer_locked: {:?}", e);
+                return Err(e.into());
+            };
+            // console!("Tx locked 2");
+            // if let Err(e) = pool.transfer_locked(
+            //     &mut *self,
+            //     order_tick,
+            //     _use_order_volume,
+            //     seller,
+            //     buyer,
+            //     false,
+            // ) {
+            //     console!("Error during transfer_locked: {:?}", e);
+            //     return Err(e.into());
+            // };
 
-            let _ = pool.transfer_locked(&mut *self, user, order_user, order_volume, is_buy);
-            let _ = pool.transfer_locked(&mut *self, order_user, user, order_volume, !is_buy);
-
+            let _ = bitmap_manager.set_current_tick(&mut *self, order_tick);
+            let _ = order_manager.update_order(
+                &mut *self,
+                order_tick,
+                order_index,
+                remaining_order_volume,
+            );
             if remaining_incoming_order_volume == U256::ZERO {
                 break;
             }
         }
 
-        tick_manager.set_tick_data(self, tick_value, remaining_tick_volume, is_buy, true);
+        let _ = tick_manager.set_tick_data(self, tick_value, remaining_tick_volume, is_buy, true);
 
         // console!("MATCHER :: MATCH ORDER :: tick :: remaining_incoming_order_volume: {}, tick: {}", tick_value, remaining_incoming_order_volume);
 
-        remaining_incoming_order_volume
+        Ok(remaining_incoming_order_volume)
     }
 }
