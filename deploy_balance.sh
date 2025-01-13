@@ -2,14 +2,28 @@
 
 # set -x
 
-private_key="0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659"
+# Load environment variables from .env file
+source .env
+
+# Check if the script is run with "dev" argument
+if [ "$1" == "dev" ]; then
+  private_key="$STYLUS_DEV_PK"
+  rpc_url="$RPC_DEV_URL"
+else
+  private_key="$STYLUS_LOCAL_DEV_PK"
+  rpc_url="$RPC_URL"
+fi
 
 # Define the modules
-# modules=("bitmap" "engine")
-modules=("balance-manager" "pool-manager" "pool-orderbook")
+# modules=("balance-manager" "pool-manager" "pool-orderbook")
+modules=("balance-manager")
 
 # Define the deployment command
-deploy_command="cargo stylus deploy -e http://localhost:8547 --private-key \$private_key --no-verify"
+if [ "$1" == "dev" ]; then
+  deploy_command="cargo stylus deploy -e $rpc_url --private-key \$private_key"
+else
+  deploy_command="cargo stylus deploy -e $rpc_url --private-key \$private_key --no-verify"
+fi
 
 # Declare an associative array to store addresses
 declare -A addresses
@@ -20,8 +34,8 @@ for module in "${modules[@]}"; do
   output=$(cd "$(dirname "$0")/$module" && eval $deploy_command 2>&1)
   
   # Print the output for debugging
-  # echo "Deployment output for $module:"
-  # echo "$output"
+  echo "Deployment output for $module:"
+  echo "$output"
   
   # Parse the deployed contract address and remove color codes
   address=$(echo "$output" | sed -r 's/\x1b\[[0-9;]*m//g' | awk '/deployed code at address:/ {print $NF}')
@@ -44,9 +58,5 @@ for module in "${!addresses[@]}"; do
     sed -i "s/${snake_case_module}_ADDRESS=.*/${snake_case_module}_ADDRESS=${addresses[$module]}/" .env
   fi
 done
-
-
-# Define the RPC URL
-rpc_url="http://localhost:8547"
 
 # echo "Initialize contracts"

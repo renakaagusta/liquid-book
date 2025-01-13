@@ -5,8 +5,9 @@ extern crate alloc;
 use alloy_sol_macro::sol;
 use stylus_sdk::{
     alloy_primitives::{Address, U256},
-    console, evm,
+    evm,
     prelude::{entrypoint, public, sol_interface, sol_storage},
+    // console,
 };
 
 sol! {
@@ -116,18 +117,18 @@ impl MatcherManager {
                 is_market: is_market,
                 volume: order_volume - remaining_order_volume,
             });
-            console!(
-                "Tick: {:?}, Buyer: {:?}, Seller: {:?}, Volume: {:?}",
-                order_tick,
-                buyer,
-                seller,
-                use_order_volume
-            );
+            // console!(
+            //     "Tick: {:?}, Buyer: {:?}, Seller: {:?}, Volume: {:?}",
+            //     order_tick,
+            //     buyer,
+            //     seller,
+            //     use_order_volume
+            // );
 
             if let Err(e) =
                 pool.transfer_locked(&mut *self, order_tick, use_order_volume, buyer, seller)
             {
-                console!("Error during transfer_locked: {:?}", e);
+                // console!("Error during transfer_locked: {:?}", e);
                 return Err(e.into());
             };
 
