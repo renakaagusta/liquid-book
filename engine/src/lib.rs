@@ -4,14 +4,13 @@ extern crate alloc;
 use alloc::vec::Vec;
 use alloy_primitives::Address;
 use alloy_sol_macro::sol;
+use core::panic::PanicInfo;
 use stylus_sdk::{alloy_primitives::U256, console, evm, prelude::*};
 
-// use core::panic::PanicInfo;
-
-// #[panic_handler]
-// fn panic(_info: &PanicInfo) -> ! {
-//     loop {}
-// }
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    loop {}
+}
 
 sol! {
     event PlaceOrder(address indexed user, int128 indexed tick, uint256 order_index, bool is_buy, bool is_market, uint256 volume, uint256 remaining_volume);

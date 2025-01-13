@@ -11,12 +11,12 @@ use stylus_sdk::{
     prelude::*,
 };
 
-// use core::panic::PanicInfo;
+use core::panic::PanicInfo;
 
-// #[panic_handler]
-// fn panic(_info: &PanicInfo) -> ! {
-//     loop {}
-// }
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    loop {}
+}
 
 sol! {
     event InsertOrder(address indexed user, int128 indexed tick, uint256 indexed order_index, bool is_buy, uint256 volume);
