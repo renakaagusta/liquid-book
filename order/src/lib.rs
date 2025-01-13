@@ -6,10 +6,9 @@ use alloc::vec::Vec;
 use alloy_sol_macro::sol;
 use stylus_sdk::{
     alloy_primitives::{keccak256, Address, U256},
+    console, evm,
     hostio::{storage_cache_bytes32, storage_flush_cache, storage_load_bytes32},
     prelude::*,
-    evm,
-    console
 };
 
 use core::panic::PanicInfo;
@@ -71,13 +70,12 @@ impl OrderManager {
         let tick_manager_address = self.tick_manager_address.get();
         let tick_manager = ITickManager::new(tick_manager_address);
 
-        let (start_index, length, tick_volume, tick_is_buy) =
-            tick_manager.get_tick_data(&*self, tick).unwrap();
+        let (start_index, length, _, _) = tick_manager.get_tick_data(&*self, tick).unwrap();
 
         let order_index = start_index + length % U256::from(256);
 
         self.write_order(tick, order_index, user, volume);
-        tick_manager.set_tick_data(self, tick, volume, is_buy, false);
+        let _ = tick_manager.set_tick_data(self, tick, volume, is_buy, false);
 
         evm::log(InsertOrder {
             user: user,
@@ -165,7 +163,6 @@ impl OrderManager {
         let mut encoded = [0u8; 32];
         encoded[..20].copy_from_slice(&<[u8; 20]>::from(user));
         encoded[20..32].copy_from_slice(&volume.to_be_bytes::<32>()[20..32]);
-
         Ok(encoded)
     }
 

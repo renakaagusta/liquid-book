@@ -4,13 +4,12 @@ extern crate alloc;
 
 use crate::alloc::string::ToString;
 use alloy_sol_macro::sol;
-use stylus_sdk::storage::{StorageMap, StorageU256, StorageI128};
+use stylus_sdk::storage::{StorageI128, StorageMap, StorageU256};
 use stylus_sdk::{
-    alloy_primitives::{U256, I128},
+    alloy_primitives::{I128, U256},
+    console, evm,
     prelude::*,
     stylus_proc::entrypoint,
-    evm,
-    console
 };
 
 pub mod maths;
@@ -42,8 +41,7 @@ impl BitmapManager {
     }
 
     pub fn get_current_tick(&self) -> i128 {
-        self
-            .current_tick
+        self.current_tick
             .get()
             .to_string()
             .parse::<i128>()
@@ -51,11 +49,10 @@ impl BitmapManager {
     }
 
     pub fn set_current_tick(&mut self, tick: i128) -> i128 {
-        self.current_tick.set(tick.to_string().parse::<I128>().unwrap());
-        
-        evm::log(SetCurrentTick {
-            tick: tick
-        });
+        self.current_tick
+            .set(tick.to_string().parse::<I128>().unwrap());
+
+        evm::log(SetCurrentTick { tick: tick });
 
         tick
     }
@@ -96,16 +93,14 @@ impl BitmapManager {
 
     pub fn flip(&mut self, tick: i32) -> (i16, u8) {
         TickBitmap::flip_tick(&mut self.storage, tick, 1);
-    
-        evm::log(FlipTick {
-            tick: tick
-        });
+
+        evm::log(FlipTick { tick: tick });
 
         self.position(tick)
     }
 
-    fn get_bitmap(&mut self, index: i16) {
-        let bitmap = self.storage.get(index);
+    fn get_bitmap(&mut self, index: i16) -> U256 {
+        self.storage.get(index)
         // console!("BITMAP :: bitmap: {:b}", bitmap);
     }
 
@@ -113,5 +108,16 @@ impl BitmapManager {
         let (next, initialized) =
             TickBitmap::next_initialized_tick_within_one_word(&self.storage, tick, 1, lte);
         (next, initialized)
+    }
+
+    pub fn convert_from_tick_to_price(tick: i128) -> U256 {
+        let base: u128 = 1_000_100; // 1.0001 * 10^6
+        let scale: u128 = 1_000_000; // 10^6
+
+        let mut result: u128 = scale;
+        for _ in 0..tick {
+            result = (result * base) / scale;
+        }
+        U256::from(result / scale)
     }
 }

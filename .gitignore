@@ -1,0 +1,17 @@
+# Binaries for programs and tests
+/target/
+
+# Build artifacts
+**/*.rs.bk
+
+# Cargo.lock and output files
+Cargo.lock
+*.log
+
+# IDE and editor files
+.vscode/
+*.iml
+*.idea/
+
+# Environment variables
+.env
