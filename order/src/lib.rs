@@ -77,6 +77,8 @@ impl OrderManager {
         self.write_order(tick, order_index, user, volume);
         let _ = tick_manager.set_tick_data(self, tick, volume, is_buy, false);
 
+        console!("TICK :: insert order");
+
         evm::log(InsertOrder {
             user: user,
             tick: tick,
@@ -88,7 +90,7 @@ impl OrderManager {
         order_index
     }
 
-    pub fn update_order(&mut self, tick: i128, tick_volume: U256, volume: U256, order_index: U256) {
+    pub fn update_order(&mut self, tick: i128, volume: U256, order_index: U256) {
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
         let order_data = self.read_order(tick, order_index).unwrap();
 
@@ -97,6 +99,8 @@ impl OrderManager {
         } else {
             self.write_order(tick, U256::from(order_index), order_data.0, volume);
         }
+
+        console!("TICK : update order");
 
         evm::log(UpdateOrder {
             tick: tick,

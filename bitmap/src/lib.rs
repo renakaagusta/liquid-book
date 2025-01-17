@@ -7,7 +7,8 @@ use alloy_sol_macro::sol;
 use stylus_sdk::storage::{StorageI128, StorageMap, StorageU256};
 use stylus_sdk::{
     alloy_primitives::{I128, U256},
-    console, evm,
+    console, 
+    evm,
     prelude::*,
     stylus_proc::entrypoint,
 };
@@ -52,15 +53,17 @@ impl BitmapManager {
         self.current_tick
             .set(tick.to_string().parse::<I128>().unwrap());
 
+        console!("BITMAP :: set current tick");
         evm::log(SetCurrentTick { tick: tick });
 
         tick
     }
 
-    // pub fn log(&self, value: i32) {
-    //     console!("BITMAP :: log :: value: {}", value);
-    // }
+    pub fn log(&self, value: i32) {
+        console!("BITMAP :: log :: value: {}", value);
+    }
 
+    
     pub fn top_n_best_ticks(&self, is_buy: bool) -> Vec<i128> {
         let mut counter = U256::from(0);
         let mut best_ticks: Vec<i128> = Vec::new();
@@ -70,6 +73,8 @@ impl BitmapManager {
             .to_string()
             .parse::<i32>()
             .unwrap_or(0);
+
+        console!("BITMAP :: current tick: {}", current_tick);
 
         loop {
             let (next_tick, initialized) = self.next_tick(current_tick, !is_buy);
@@ -81,17 +86,19 @@ impl BitmapManager {
             current_tick = if !is_buy { next_tick - 1 } else { next_tick };
             counter += U256::from(1);
 
-            if counter == U256::from(5) {
+            if best_ticks.len() == 5 || counter == U256::from(256) {
                 break;
             }
         }
 
-        // console!("BITMAP :: best ticks: {:?} {:?}", is_buy, best_ticks);
+        console!("BITMAP :: best ticks: {:?} {:?}", is_buy, best_ticks);
 
         best_ticks
     }
 
     pub fn flip(&mut self, tick: i32) -> (i16, u8) {
+        console!("BITMAP :: flip :: {:b}{:b}{:b}{:b}{:b}", self.storage.get(320), self.storage.get(319), self.storage.get(318), self.storage.get(317), self.storage.get(316));
+
         TickBitmap::flip_tick(&mut self.storage, tick, 1);
 
         evm::log(FlipTick { tick: tick });
@@ -99,10 +106,11 @@ impl BitmapManager {
         self.position(tick)
     }
 
-    fn get_bitmap(&mut self, index: i16) -> U256 {
-        self.storage.get(index)
+    // fn get_bitmap(&mut self, index: i16) -> U256 {
+        // self.storage.get(index)
         // console!("BITMAP :: bitmap: {:b}", bitmap);
-    }
+    //     U256::ZERO
+    // }
 
     pub fn next_tick(&self, tick: i32, lte: bool) -> (i32, bool) {
         let (next, initialized) =

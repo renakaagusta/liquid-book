@@ -7,7 +7,7 @@ use stylus_sdk::{
     alloy_primitives::{Address, U256},
     evm,
     prelude::{entrypoint, public, sol_interface, sol_storage},
-    // console,
+    console,
 };
 
 sol! {
@@ -77,6 +77,8 @@ impl MatcherManager {
         tick_value: i128,
         tick_volume: U256,
     ) -> Result<U256, Vec<u8>> {
+        console!("MATCHER :: match :: 1");
+
         let mut remaining_incoming_order_volume = incoming_order_volume;
         let mut remaining_tick_volume = tick_volume;
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
@@ -117,6 +119,9 @@ impl MatcherManager {
                 is_market: is_market,
                 volume: order_volume - remaining_order_volume,
             });
+
+            console!("MATCHER :: match :: 2");
+
             // console!(
             //     "Tick: {:?}, Buyer: {:?}, Seller: {:?}, Volume: {:?}",
             //     order_tick,
@@ -125,19 +130,20 @@ impl MatcherManager {
             //     use_order_volume
             // );
 
-            if let Err(e) =
-                pool.transfer_locked(&mut *self, order_tick, use_order_volume, buyer, seller)
-            {
-                // console!("Error during transfer_locked: {:?}", e);
-                return Err(e.into());
-            };
+            // TODO
+            // if let Err(e) =
+            //     pool.transfer_locked(&mut *self, order_tick, use_order_volume, buyer, seller)
+            // {
+            //     // console!("Error during transfer_locked: {:?}", e);
+            //     return Err(e.into());
+            // };
 
             let _ = bitmap_manager.set_current_tick(&mut *self, order_tick);
             let _ = order_manager.update_order(
                 &mut *self,
                 order_tick,
-                order_index,
                 remaining_order_volume,
+                order_index,
             );
             if remaining_incoming_order_volume == U256::ZERO {
                 break;

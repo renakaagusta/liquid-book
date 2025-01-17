@@ -67,13 +67,14 @@ impl LiquidBookEngine {
 
     pub fn place_order(
         &mut self,
-        incoming_order_volume: U256,
         incoming_order_tick: i128,
+        incoming_order_volume: U256,
         incoming_order_user: Address,
         incoming_order_is_buy: bool,
-        incoming_order_is_market: bool,
+        incoming_order_is_market: bool
     ) -> (U256, i128, U256) {
-        console!("Engine log 0");
+        console!("incoming_order_is_buy: {}", incoming_order_is_buy);
+
         let tick_manager = ITickManager::new(self.tick_manager_address.get());
         let order_manager = IOrderManager::new(self.order_manager_address.get());
         let bitmap_manager = IBitmapManager::new(self.bitmap_manager_address.get());
