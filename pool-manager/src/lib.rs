@@ -4,7 +4,9 @@ extern crate alloc;
 use alloy_sol_types::sol;
 use stylus_sdk::{
     alloy_primitives::{Address, U256},
-    contract, evm, msg,
+    contract, 
+    // evm, 
+    msg,
     prelude::*,
 };
 
@@ -93,13 +95,13 @@ impl PoolManager {
         self.pool_addresses.push(pool_address);
         self.is_pools.insert(pool_address, true);
 
-        evm::log(PoolInitialized {
-            pool_address,
-            asset_token,
-            stable_token,
-            current_tick,
-            lot_size,
-        });
+        // evm::log(PoolInitialized {
+        //     pool_address,
+        //     asset_token,
+        //     stable_token,
+        //     current_tick,
+        //     lot_size,
+        // });
     }
 
     pub fn place_order(
@@ -113,35 +115,36 @@ impl PoolManager {
         let incoming_order_user = msg::sender();
         let pool_liquid_book = IPoolLiquidBook::new(pool_address);
 
-        let volume_locked = match incoming_order_is_buy {
-            true => pool_liquid_book
-                .calculate_price(&mut *self, incoming_order_volume, incoming_order_tick)
-                .unwrap(),
-            false => incoming_order_volume,
-        };
+        // TODO
+        // let volume_locked = match incoming_order_is_buy {
+        //     true => pool_liquid_book
+        //         .calculate_price(&mut *self, incoming_order_volume, incoming_order_tick)
+        //         .unwrap(),
+        //     false => incoming_order_volume,
+        // };
 
-        let token_address = pool_liquid_book
-            .get_token_address(&*self, incoming_order_is_buy)
-            .unwrap();
-        let _balance_manager = IBalanceManager::new(self.balance_manager.get());
-        if let Err(e) = _balance_manager.lock(
-            &mut *self,
-            incoming_order_user,
-            contract::address(),
-            token_address,
-            volume_locked,
-        ) {
-            return Err(e.into());
-        }
+        // let token_address = pool_liquid_book
+        //     .get_token_address(&*self, incoming_order_is_buy)
+        //     .unwrap();
+        // let _balance_manager = IBalanceManager::new(self.balance_manager.get());
+        
+        // if let Err(e) = _balance_manager.lock(
+        //     &mut *self,
+        //     incoming_order_user,
+        //     contract::address(),
+        //     token_address,
+        //     volume_locked,
+        // ) {
+        //     return Err(e.into());
+        // }
 
-        let lot_size = pool_liquid_book.get_lot_size(&mut *self).unwrap();
+        // let lot_size = pool_liquid_book.get_lot_size(&mut *self).unwrap();
 
-        if incoming_order_volume < lot_size || incoming_order_volume % lot_size != U256::ZERO {
-            return Err(b"Invalid order volume.".to_vec());
-        }
+        // if incoming_order_volume < lot_size || incoming_order_volume % lot_size != U256::ZERO {
+        //     return Err(b"Invalid order volume.".to_vec());
+        // }
 
-        let engine_manager =
-            ILiquidBookEngine::new(pool_liquid_book.get_engine_address(&mut *self).unwrap());
+        let engine_manager = ILiquidBookEngine::new(pool_liquid_book.get_engine_address(&mut *self).unwrap());
         if let Err(e) = engine_manager.place_order(
             &mut *self,
             incoming_order_volume,
@@ -152,6 +155,7 @@ impl PoolManager {
         ) {
             return Err(e.into());
         }
+
         Ok(())
     }
 }

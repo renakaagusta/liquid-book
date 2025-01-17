@@ -97,26 +97,14 @@ impl TickManager {
 
             updated_volume = U128::from(volume);
         } else {
-            if tick_data.volume.get() == U128::ZERO
-                || (tick_data.is_buy.get() != is_buy && U128::from(volume) > tick_data.volume.get())
-            {
-                updated_volume = U128::from(volume) - tick_data.volume.get();
-                updated_is_buy = !tick_data.is_buy.get();
+            updated_length = (updated_length + U128::from(1)) % U128::from(256);
+            updated_volume = tick_data.volume.get() + U128::from(volume);
+            updated_is_buy = is_buy;
 
-                self.ticks
-                    .setter(tick.to_string().parse::<I128>().unwrap())
-                    .is_buy
-                    .set(updated_is_buy);
-            } else if tick_data.is_buy.get() != is_buy {
-                updated_volume = tick_data.volume.get() - U128::from(volume);
-            } else if tick_data.is_buy.get() == is_buy {
-                updated_volume = tick_data.volume.get() + U128::from(volume);
-            } else {
-                updated_volume = U128::from(0);
-            }
-
-            updated_length += U128::from(1) % U128::from(256);
-
+            self.ticks
+                .setter(tick.to_string().parse::<I128>().unwrap())
+                .is_buy
+                .set(updated_is_buy);
             self.ticks
                 .setter(tick.to_string().parse::<I128>().unwrap())
                 .length
@@ -128,9 +116,12 @@ impl TickManager {
             .volume
             .set(updated_volume);
 
+        // console!("TICK :: tick :: 1");
+
         if initial_volume == U128::ZERO && updated_volume != U128::ZERO
             || initial_volume != U128::ZERO && updated_volume == U128::ZERO
         {
+            console!("TICK :: tick :: {}", tick);
             let converted_tick: i32 = tick.try_into().unwrap();
             let bitmap_manager = IBitmapStorage::new(self.bitmap_manager_address.get());
 
